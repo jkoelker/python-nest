@@ -3,7 +3,7 @@
 
 from distutils.core import setup
 
-setup(name='nest_thermostat',
+setup(name='nest-thermostat',
       version='1.1',
       description='Python API and command line tool for talking to the Nest™ Thermostat',
       author='Scott Baker',

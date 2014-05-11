@@ -5,7 +5,7 @@
 *fork of pynest by Scott M Baker, smbaker@gmail.com, http://www.smbaker.com/*
 
 ##Installation
-`[sudo] pip install nest_thermostat`
+`[sudo] pip install nest-thermostat`
 
 ##Usage
 
