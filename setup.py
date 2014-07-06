@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(name='nest-thermostat',
-      version='1.1',
+      version='1.2',
       description='Python API and command line tool for talking to the Nest™ Thermostat',
       author='Scott Baker',
       author_email='smbaker@gmail.com',
