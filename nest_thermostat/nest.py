@@ -228,7 +228,6 @@ class Nest(object):
         self._session.headers.update(headers)
 
     def __enter__(self):
-        self.login()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
