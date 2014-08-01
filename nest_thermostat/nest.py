@@ -67,29 +67,32 @@ class NestAuth(auth.AuthBase):
         return r
 
 
-class Device(object):
-    def __init__(self, device_id, nest_api):
-        self._device_id = device_id
+class NestBase(object):
+    def __init__(self, serial, nest_api):
+        self._serial = serial
         self._nest_api = nest_api
+        self.name = serial
 
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, self.name)
 
     def _set(self, what, data):
         url = '%s/v2/put/%s.%s' % (self._nest_api.urls['transport_url'],
-                                   what, self._device_id)
+                                   what, self._serial)
         response = self._nest_api._session.post(url, data=json.dumps(data))
         response.raise_for_status()
 
         self._nest_api._bust_cache()
 
+
+class Device(NestBase):
     @property
     def _device(self):
-        return self._nest_api._status['device'][self._device_id]
+        return self._nest_api._status['device'][self._serial]
 
     @property
     def _shared(self):
-        return self._nest_api._status['shared'][self._device_id]
+        return self._nest_api._status['shared'][self._serial]
 
     @property
     def fan(self):
@@ -149,25 +152,13 @@ class Device(object):
         self._set('shared', data)
 
 
-class Structure(object):
-    def __init__(self, structure_id, nest_api):
-        self._structure_id = structure_id
-        self._nest_api = nest_api
-
-    def __repr__(self):
-        return '<%s: %s>' % (self.__class__.__name__, self.name)
-
+class Structure(NestBase):
     def _set(self, data):
-        url = '%s/v2/put/structure.%s' % (self._nest_api.urls['transport_url'],
-                                          self._structure_id)
-        response = self._nest_api._session.post(url, data=json.dumps(data))
-        response.raise_for_status()
-
-        self._nest_api._bust_cache()
+        super(Structure, self)._set('structure', data)
 
     @property
     def _structure(self):
-        return self._nest_api._status['structure'][self._structure_id]
+        return self._nest_api._status['structure'][self._serial]
 
     @property
     def away(self):
