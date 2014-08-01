@@ -243,23 +243,6 @@ class Nest(object):
     def __exit__(self, exc_type, exc_value, traceback):
         return False
 
-    def _set(self, data, which):
-        url = '%s/v2/put/%s.%s' % (self.transport_url, which, self.serial)
-        if (self.debug):
-            print url
-
-        headers = {'user-agent': 'Nest/1.1.0.10 CFNetwork/548.0.4',
-                   'Authorization': 'Basic ' + self.access_token,
-                   'X-nl-protocol-version': '1'}
-
-        response = requests.post(url, headers=headers, data=json.dumps(data))
-
-        if response.status_code > 200:
-            if (self.debug):
-                print response.content
-        response.raise_for_status()
-        return response
-
     @property
     def _status(self):
         value, last_update = self._cache
