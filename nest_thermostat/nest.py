@@ -6,27 +6,235 @@ by Scott M Baker, smbaker@gmail.com, http://www.smbaker.com/
 updated by Bob Pasker bob@pasker.net http://pasker.net
 '''
 
+import time
+
 import requests
-
-try:
-    import json
-except ImportError:
-    import simplejson as json
+from requests import auth
+from requests.compat import json
 
 
-CELSIUS = 'C'
-FAHRENHEIT = 'F'
+LOGIN_URL = 'https://home.nest.com/user/login'
+AWAY_MAP = {'on': True,
+            'away': True,
+            'off': False,
+            'home': False,
+            True: True,
+            False: False}
+FAN_MAP = {'auto on': 'auto',
+           'on': 'on',
+           'auto': 'auto',
+           'always on': 'on',
+           '1': 'on',
+           '0': 'auto',
+           1: 'on',
+           0: 'auto',
+           True: 'on',
+           False: 'auto'}
+
+
+class NestAuth(auth.AuthBase):
+    def __init__(self, username, password, token_refresh_interval=3600,
+                 auth_callback=None):
+        self.username = username
+        self.password = password
+        self.token_refresh_interval = token_refresh_interval
+        self.auth_callback = auth_callback
+
+        self._access_token = None
+        self._expires_in = None
+        self._access_token_timeout = 0
+
+    def _login(self, headers):
+        data = {'username': self.username, 'password': self.password}
+        response = requests.post(LOGIN_URL, data=data,
+                                 headers=headers)
+        response.raise_for_status()
+        res = response.json()
+
+        self._access_token = res['access_token']
+        self._expires_in = res['expires_in']
+
+        if self.auth_callback is not None and callable(self.auth_callback):
+            self.auth_callback(res)
+
+        self._access_token_timeout = time.time() + self.token_refresh_interval
+
+    def __call__(self, r):
+        if not self._access_token or time.time() >= self._access_token_timeout:
+            self._login(r.headers.copy())
+
+        r.headers['Authorization'] = 'Basic ' + self._access_token
+        return r
+
+
+class Device(object):
+    def __init__(self, device_id, nest_api):
+        self._device_id = device_id
+        self._nest_api = nest_api
+
+    def __repr__(self):
+        return '<%s: %s>' % (self.__class__.__name__, self.name)
+
+    def _set(self, what, data):
+        url = '%s/v2/put/%s.%s' % (self._nest_api.urls['transport_url'],
+                                   what, self._device_id)
+        response = self._nest_api._session.post(url, data=json.dumps(data))
+        response.raise_for_status()
+
+        self._nest_api._bust_cache()
+
+    @property
+    def _device(self):
+        return self._nest_api._status['device'][self._device_id]
+
+    @property
+    def _shared(self):
+        return self._nest_api._status['shared'][self._device_id]
+
+    @property
+    def fan(self):
+        return self._shared['hvac_fan_state']
+
+    @fan.setter
+    def fan(self, value):
+        self._set('device', {'fan_mode': FAN_MAP.get(value, 'auto')})
+
+    @property
+    def humidity(self):
+        return self._device['current_humidity']
+
+    @property
+    def mode(self):
+        return self._shared['target_temperature_type']
+
+    @mode.setter
+    def mode(self, value):
+        self._set('shared', {'target_temperature_type': value.lower()})
+
+    @property
+    def name(self):
+        return self._shared['name']
+
+    @name.setter
+    def name(self, value):
+        self._set('shared', {'name': value})
+
+    @property
+    def temperature(self):
+        return self._shared['current_temperature']
+
+    @temperature.setter
+    def temperature(self, value):
+        self.target = value
+
+    @property
+    def target(self):
+        if self._shared['target_temperature_type'] == 'range':
+            return (self._shared['target_temperature_low'],
+                    self._shared['target_temperature_high'])
+
+        return self._shared['target_temperature']
+
+    @target.setter
+    def target(self, value):
+        data = {'target_change_pending': True}
+
+        if self._shared['target_temperature_type'] == 'range':
+            data['target_temperature_low'] = value[0]
+            data['target_temperature_high'] = value[1]
+
+        else:
+            data['target_temperature'] = value
+
+        self._set('shared', data)
+
+
+class Structure(object):
+    def __init__(self, structure_id, nest_api):
+        self._structure_id = structure_id
+        self._nest_api = nest_api
+
+    def __repr__(self):
+        return '<%s: %s>' % (self.__class__.__name__, self.name)
+
+    def _set(self, data):
+        url = '%s/v2/put/structure.%s' % (self._nest_api.urls['transport_url'],
+                                          self._structure_id)
+        response = self._nest_api._session.post(url, data=json.dumps(data))
+        response.raise_for_status()
+
+        self._nest_api._bust_cache()
+
+    @property
+    def _structure(self):
+        return self._nest_api._status['structure'][self._structure_id]
+
+    @property
+    def away(self):
+        return self._structure['away']
+
+    @away.setter
+    def away(self, value):
+        self._set({'away': AWAY_MAP[value]})
+
+    @property
+    def devices(self):
+        return [Device(devid.lstrip('device.'), self._nest_api)
+                for devid in self._structure['devices']]
+
+    @property
+    def name(self):
+        return self._structure['name']
+
+    @name.setter
+    def name(self, value):
+        self._set({'name': value})
+
+    @property
+    def location(self):
+        return self._structure['location']
+
+    @property
+    def address(self):
+        return self._structure['street_address']
+
+    @property
+    def postal_code(self):
+        return self._structure['postal_code']
 
 
 class Nest(object):
-    def __init__(self, username, password, serial=None, index=0,
-                 units=CELSIUS, debug=False):
-        self.username = username
-        self.password = password
-        self.serial = serial
-        self.units = units
-        self.index = index
-        self.debug = debug
+    def __init__(self, username, password, cache_ttl=270,
+                 user_agent='Nest/1.1.0.10 CFNetwork/548.0.4'):
+        self._urls = {}
+        self._limits = {}
+        self._user = None
+        self._userid = None
+        self._weave = None
+        self._staff = False
+        self._superuser = False
+        self._email = None
+        self._cache_ttl = cache_ttl
+        self._cache = (None, 0)
+
+        def auth_callback(result):
+            self._urls = result['urls']
+            self._limits = result['limits']
+            self._user = result['user']
+            self._userid = result['userid']
+            self._weave = result['weave']
+            self._staff = result['is_staff']
+            self._superuser = result['is_superuser']
+            self._email = result['email']
+
+        self._user_agent = user_agent
+        self._session = requests.Session()
+        self._session.auth = NestAuth(username, password,
+                                      auth_callback=auth_callback)
+
+        headers = {'user-agent': 'Nest/1.1.0.10 CFNetwork/548.0.4',
+                   'X-nl-protocol-version': '1'}
+        self._session.headers.update(headers)
 
     def __enter__(self):
         self.login()
@@ -35,82 +243,7 @@ class Nest(object):
     def __exit__(self, exc_type, exc_value, traceback):
         return False
 
-    def login(self):
-        data = {'username': self.username, 'password': self.password}
-        headers = {'user-agent': 'Nest/1.1.0.10 CFNetwork/548.0.4'}
-        response = requests.post('https://home.nest.com/user/login', data=data,
-                                 headers=headers)
-
-        response.raise_for_status()
-
-        res = response.json()
-        self.transport_url = res['urls']['transport_url']
-        self.access_token = res['access_token']
-        self.userid = res['userid']
-        # print self.transport_url, self.access_token, self.userid
-
-    def get_status(self):
-        url = self.transport_url + '/v2/mobile/user.' + self.userid
-        headers = {'user-agent': 'Nest/1.1.0.10 CFNetwork/548.0.4',
-                   'Authorization': 'Basic ' + self.access_token,
-                   'X-nl-user-id': self.userid,
-                   'X-nl-protocol-version': '1'}
-        response = requests.get(url, headers=headers)
-
-        response.raise_for_status()
-        res = response.json()
-
-        self.structure_id = res['structure'].keys()[0]
-
-        if (self.serial is None):
-            structure = res['structure'][self.structure_id]
-            self.device_id = structure['devices'][self.index]
-            self.serial = self.device_id.split('.')[1]
-
-            self.status = res
-
-    def temp_in(self, temp):
-        if self.units == FAHRENHEIT:
-            return (temp - 32.0) / 1.8
-
-        return temp
-
-    def temp_out(self, temp):
-        if self.units == FAHRENHEIT:
-            return temp*1.8 + 32.0
-
-        return temp
-
-    def show_status(self):
-        shared = self.status['shared'][self.serial]
-        device = self.status['device'][self.serial]
-
-        allvars = shared
-        allvars.update(device)
-
-        for k in sorted(allvars.keys()):
-            print k + '.'*(32-len(k)) + ':', allvars[k]
-
-    def show_curtemp(self):
-        temp = self.status['shared'][self.serial]['current_temperature']
-        temp = self.temp_out(temp)
-
-        print '%0.1f' % temp
-
-    def show_target(self):
-        temp = self.status['shared'][self.serial]['target_temperature']
-        temp = self.temp_out(temp)
-
-        print temp
-
-    def show_curmode(self):
-        mode = self.status['shared'][self.serial]['target_temperature_type']
-
-        print mode
-
     def _set(self, data, which):
-        if (self.debug):
-            print json.dumps(data)
         url = '%s/v2/put/%s.%s' % (self.transport_url, which, self.serial)
         if (self.debug):
             print url
@@ -127,31 +260,36 @@ class Nest(object):
         response.raise_for_status()
         return response
 
-    def _set_shared(self, data):
-        self._set(data, 'shared')
+    @property
+    def _status(self):
+        value, last_update = self._cache
+        now = time.time()
 
-    def _set_device(self, data):
-        self._set(data, 'device')
+        if not value or now - last_update > self._cache_ttl:
+            url = self.urls['transport_url'] + '/v2/mobile/' + self._user
+            response = self._session.get(url)
+            response.raise_for_status()
+            value = response.json()
+            self._cache = (value, now)
 
-    def set_temperature(self, temp):
-        return self._set_shared({'target_change_pending': True,
-                                 'target_temperature': self.temp_in(temp)})
+        return value
 
-    def set_fan(self, state):
-        return self._set_device({'fan_mode': str(state)})
+    def _bust_cache(self):
+        self._cache = (None, 0)
 
-    def set_mode(self, state):
-        return self._set_shared({
-            'target_temperature_type': str(state)
-        })
+    @property
+    def devices(self):
+        return [Device(devid.lstrip('device.'), self)
+                for devid in self._status['device']]
 
-    def toggle_away(self):
-        was_away = self.status['structure'][self.structure_id]['away']
-        data = {'away': ('false' if was_away else 'true')}
-        url = self.transport_url + '/v2/put/structure.' + self.structure_id,
-        headers = {'user-agent': 'Nest/1.1.0.10 CFNetwork/548.0.4',
-                   'Authorization': 'Basic ' + self.access_token,
-                   'X-nl-protocol-version': '1'}
-        response = requests.post(url, data=data, headers=headers)
-        response.raise_for_status()
-        return response
+    @property
+    def structures(self):
+        return [Structure(stid, self) for stid in self._status['structure']]
+
+    @property
+    def urls(self):
+        if not self._urls:
+            # NOTE(jkoelker) Bootstrap the URLs (and the auth_callback data)
+            self._session.auth._login(self._session.headers.copy())
+
+        return self._urls

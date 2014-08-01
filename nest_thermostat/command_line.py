@@ -6,7 +6,9 @@ nest.py -- a python interface to the Nest Thermostats
 '''
 
 import argparse
-import nest_thermostat
+
+from . import nest
+from . import utils
 
 
 def create_parser():
@@ -34,7 +36,7 @@ def create_parser():
     subparsers = parser.add_subparsers(dest='command',
                                        help='command help')
     temp = subparsers.add_parser('temp', help='show/set temperature')
-    temp.add_argument('temperature', nargs='?',
+    temp.add_argument('temperature', nargs='*',
                       help='target tempterature to set device to')
 
     fan = subparsers.add_parser('fan', help='set fan "on" or "auto"')
@@ -62,8 +64,8 @@ def create_parser():
     away_group.add_argument('--home', action='store_true', default=False,
                             help='set away status to "home"')
 
-    subparsers.add_parser('humid', help='show current humidity')
     subparsers.add_parser('target', help='show current temp target')
+    subparsers.add_parser('humid', help='show current humidity')
     subparsers.add_parser('show', help='show everything')
 
     return parser
@@ -74,58 +76,93 @@ def main():
     args = parser.parse_args()
 
     if args.celsius:
-        units = nest_thermostat.CELSIUS
+        display_temp = lambda x: x
+        convert_temp = lambda x: x
+
     else:
-        units = nest_thermostat.FAHRENHEIT
+        display_temp = utils.c_to_f
+        convert_temp = utils.f_to_c
 
     cmd = args.command
 
-    with nest_thermostat.Nest(args.user, args.password, args.serial,
-                              args.index, units=units) as nest:
-        nest.get_status()
+    with nest.Nest(args.user, args.password) as napi:
+        if cmd == 'away':
+            structure = napi.structures[0]
+
+            if args.away:
+                structure.away = True
+
+            elif args.home:
+                structure.away = False
+
+            print structure.away
+            return
+
+        if args.serial:
+            device = nest.Device(args.serial, napi)
+
+        else:
+            device = napi.devices[args.index]
 
         if cmd == 'temp':
             if args.temperature:
-                nest.set_temperature(float(args.temperature))
+                if len(args.temperature) > 1:
+                    if args.mode != 'range':
+                        device.mode = 'range'
 
-            nest.show_curtemp()
+                    device.temperature = (args.temperature[0],
+                                          args.temperature[1])
+
+                else:
+                    temp = convert_temp(args.temperature)
+                    device.temperature = temp
+
+            print '%0.1f' % display_temp(device.temperature)
 
         elif cmd == 'fan':
             if args.auto:
-                nest.set_fan('auto')
+                device.fan = False
 
             elif args.on:
-                nest.set_fan('on')
+                device.fan = True
 
-            # TODO(jkoelker) Fan state?
+            print device.fan
 
         elif cmd == 'mode':
             if args.cool:
-                nest.set_mode('cool')
+                device.mode('cool')
 
             elif args.heat:
-                nest.set_mode('heat')
+                device.mode('heat')
 
             elif args.range:
-                nest.set_mode('range')
+                device.mode('range')
 
             elif args.off:
-                nest.set_mode('off')
+                device.mode('off')
 
-            nest.show_curmode()
-
-        elif cmd == 'away':
-            # TODO(jkoelker) after refactor of nest class
-            pass
+            print device.mode
 
         elif cmd == 'humid':
-            print nest.status['device'][nest.serial]['current_humidity']
+            print device.humidity
 
         elif cmd == 'target':
-            nest.show_target()
+            target = device.target
+
+            if isinstance(target, tuple):
+                print 'Lower: %0.1f' % display_temp(target[0])
+                print 'Upper: %0.1f' % display_temp(target[1])
+
+            else:
+                print '%0.1f' % display_temp(target)
 
         elif cmd == 'show':
-            nest.show_status()
+            data = device._shared.copy()
+            data.update(device._device)
+
+            for k in sorted(data.keys()):
+                print k + '.'*(32-len(k)) + ':', data[k]
+
 
 if __name__ == '__main__':
     main()
