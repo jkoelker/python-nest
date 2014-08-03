@@ -71,7 +71,6 @@ class NestBase(object):
     def __init__(self, serial, nest_api):
         self._serial = serial
         self._nest_api = nest_api
-        self.name = serial
 
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, self.name)
@@ -83,6 +82,10 @@ class NestBase(object):
         response.raise_for_status()
 
         self._nest_api._bust_cache()
+
+    @property
+    def name(self):
+        return self._serial
 
 
 class Device(NestBase):
