@@ -107,7 +107,7 @@ def main():
         if cmd == 'temp':
             if args.temperature:
                 if len(args.temperature) > 1:
-                    if args.mode != 'range':
+                    if device.mode != 'range':
                         device.mode = 'range'
 
                     device.temperature = (args.temperature[0],
