@@ -6,19 +6,46 @@ nest.py -- a python interface to the Nest Thermostats
 '''
 
 import argparse
+# TODO(jkoelker) six?
+import ConfigParser as configparser
+import os
+import sys
 
 from . import nest
 from . import utils
 
 
-def create_parser():
-    description = 'Command line interface to Nest™ Thermostats'
-    parser = argparse.ArgumentParser(description=description)
+def parse_args():
+    prog = os.path.basename(sys.argv[0])
+    config_file = os.path.sep.join(('~', '.config', prog, 'config'))
 
-    parser.add_argument('-u', '--user', dest='user', required=True,
+    conf_parser = argparse.ArgumentParser(prog=prog, add_help=False)
+    conf_parser.add_argument('--conf', default=config_file,
+                             help='config file (default %s)' % config_file,
+                             metavar='FILE')
+
+    args, remaining_argv = conf_parser.parse_known_args()
+
+    defaults = {}
+    config_file = os.path.expanduser(args.conf)
+    if os.path.exists(config_file):
+        config = configparser.SafeConfigParser()
+        config.read([config_file])
+        if config.has_section('nest'):
+            defaults = dict(config.items('nest'))
+        else:
+            defaults = dict(config.items("DEFAULT"))
+
+    description = 'Command line interface to Nest™ Thermostats'
+    parser = argparse.ArgumentParser(description=description,
+                                     parents=[conf_parser])
+
+    parser.set_defaults(**defaults)
+
+    parser.add_argument('-u', '--user', dest='user',
                         help='username for nest.com', metavar='USER')
 
-    parser.add_argument('-p', '--password', dest='password', required=True,
+    parser.add_argument('-p', '--password', dest='password',
                         help='password for nest.com', metavar='PASSWORD')
 
     parser.add_argument('-c', '--celsius', dest='celsius', action='store_true',
@@ -68,12 +95,11 @@ def create_parser():
     subparsers.add_parser('humid', help='show current humidity')
     subparsers.add_parser('show', help='show everything')
 
-    return parser
+    return parser.parse_args()
 
 
 def main():
-    parser = create_parser()
-    args = parser.parse_args()
+    args = parse_args()
 
     if args.celsius:
         display_temp = lambda x: x
