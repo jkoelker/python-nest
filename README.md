@@ -11,35 +11,85 @@
 
 ### Module
 
-You can import the module as `nest_thermostat`. Use the source, luke!
+You can import the module as `nest_thermostat`.
 
-Tips: you need to manually call `.login()` first, and `.get_status()` before `.show_*()`
+```python
+import nest_thermostat as nest
+
+username = 'joe@user.com'
+password = 'swordfish'
+
+napi = nest.Nest(username, password)
+
+for structure in napi.structures:
+    print 'Structure %s' % structure.name
+    print '    Away: %s' % structure.away
+    print '    Devices:'
+
+    for device in structure.devices:
+        print '        Device: %s' % device.name
+        print '            Temp: %0.1f' % device.temperature
+
+
+# The Nest object can also be used as a context manager
+with nest.Nest(username, password) as napi:
+    for device in napi.devices:
+        device.temp = 73
+```
+
+For "advanced" usage such as token caching, use the source, luke!
 
 ### Command line
 ```
-syntax: nest.py [options] command [command_args]
-options:
-   --user <username>      ... username on nest.com
-   --password <password>  ... password on nest.com
-   --celsius              ... use celsius (the default is farenheit)
-   --serial <number>      ... optional, specify serial number of nest to use
-   --index <number>       ... optional, 0-based index of nest
-                                (use --serial or --index, but not both)
+usage: nest [-h] [--conf FILE] [--token-cache TOKEN_CACHE_FILE] [-t TOKEN]
+            [-u USER] [-p PASSWORD] [-c] [-s SERIAL] [-i INDEX]
+            {temp,fan,mode,away,target,humid,show} ...
 
-commands:
-    temp <temperature>         ... set target temperature
-    fan [auto|on]              ... set fan state
-    mode [cool|heat|range|off] ... set fan state
-    away                       ... toggle away
-    show                       ... show everything
-    curtemp                    ... print current temperature
-    curhumid                   ... print current humidity
-    curmode                    ... print current mode
+Command line interface to Nest™ Thermostats
+
+positional arguments:
+  {temp,fan,mode,away,target,humid,show}
+                        command help
+    temp                show/set temperature
+    fan                 set fan "on" or "auto"
+    mode                show/set current mode
+    away                show/set current away status
+    target              show current temp target
+    humid               show current humidity
+    show                show everything
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --conf FILE           config file (default ~/.config/nest/config)
+  --token-cache TOKEN_CACHE_FILE
+                        auth access token
+  -t TOKEN, --token TOKEN
+                        auth access token cache file
+  -u USER, --user USER  username for nest.com
+  -p PASSWORD, --password PASSWORD
+                        password for nest.com
+  -c, --celsius         use celsius instead of farenheit
+  -s SERIAL, --serial SERIAL
+                        optional, specify serial number of nest thermostat to
+                        talk to
+  -i INDEX, --index INDEX
+                        optional, specify index number of nest to talk to
 
 examples:
-    nest.py --user joe@user.com --password swordfish temp 73
-    nest.py --user joe@user.com --password swordfish fan auto
+    nest --user joe@user.com --password swordfish temp 73
+    nest --user joe@user.com --password swordfish fan auto
 ```
+
+A configuration file can also be specified to prevent username/password repitition.
+
+```config
+[DEFAULT]
+user = joe@user.com
+password = swordfish
+token_cache = ~/.config/nest/cache
+```
+
+The `[DEFAULT]` section may also be named `[nest]` for convience.
 
 
 ---
