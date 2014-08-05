@@ -70,7 +70,6 @@ class NestAuth(auth.AuthBase):
             self.auth_callback(self._res)
 
     def _login(self, headers=None):
-        print "hi"
         data = {'username': self.username, 'password': self.password}
 
         post = requests.post
