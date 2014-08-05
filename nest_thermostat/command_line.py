@@ -43,7 +43,8 @@ def parse_args():
     parser.set_defaults(**defaults)
 
     parser.add_argument('--token-cache', dest='token_cache',
-                        help='auth access token', metavar='TOKEN_CACHE_FILE')
+                        help='auth access token cache file',
+                        metavar='TOKEN_CACHE_FILE')
 
     parser.add_argument('-t', '--token', dest='token',
                         help='auth access token', metavar='TOKEN')
