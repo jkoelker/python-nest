@@ -7,10 +7,14 @@ updated by Bob Pasker bob@pasker.net http://pasker.net
 '''
 
 import time
+import os
+import weakref
 
 import requests
 from requests import auth
+from requests import adapters
 from requests.compat import json
+from requests import hooks
 
 
 LOGIN_URL = 'https://home.nest.com/user/login'
@@ -33,37 +37,93 @@ FAN_MAP = {'auto on': 'auto',
 
 
 class NestAuth(auth.AuthBase):
-    def __init__(self, username, password, token_refresh_interval=3600,
-                 auth_callback=None):
+    def __init__(self, username, password, auth_callback=None, session=None,
+                 access_token=None, access_token_cache_file=None):
+        self._res = {}
         self.username = username
         self.password = password
-        self.token_refresh_interval = token_refresh_interval
         self.auth_callback = auth_callback
+        self._access_token_cache_file = access_token_cache_file
 
-        self._access_token = None
-        self._expires_in = None
-        self._access_token_timeout = 0
+        if (access_token_cache_file is not None and
+                access_token is None and
+                os.path.exists(access_token_cache_file)):
+            with open(access_token_cache_file, 'r') as f:
+                self._res = json.load(f)
 
-    def _login(self, headers):
+        if session is not None:
+            session = weakref.ref(session)
+
+        self._session = session
+        self._adapter = adapters.HTTPAdapter()
+
+    def _cache(self):
+        with os.fdopen(os.open(self._access_token_cache_file,
+                               os.O_WRONLY | os.O_CREAT, 0600),
+                       'w') as f:
+            json.dump(self._res, f)
+
+    def _login(self, headers=None):
+        print "hi"
         data = {'username': self.username, 'password': self.password}
-        response = requests.post(LOGIN_URL, data=data,
-                                 headers=headers)
-        response.raise_for_status()
-        res = response.json()
 
-        self._access_token = res['access_token']
-        self._expires_in = res['expires_in']
+        post = requests.post
+
+        if self._session:
+            session = self._session()
+            post = session.post
+
+        response = post(LOGIN_URL, data=data, headers=headers)
+        response.raise_for_status()
+        self._res = response.json()
+
+        if self._access_token_cache_file is not None:
+            self._cache()
 
         if self.auth_callback is not None and callable(self.auth_callback):
-            self.auth_callback(res)
+            self.auth_callback(self._res)
 
-        self._access_token_timeout = time.time() + self.token_refresh_interval
+    def _perhaps_relogin(self, r, **kwargs):
+        if r.status_code == 401:
+            self._login(r.headers.copy())
+            req = r.request.copy()
+            req.hooks = hooks.default_hooks()
+            req.headers['Authorization'] = 'Basic ' + self.access_token
+
+            adapter = self._adapter
+            if self._session:
+                session = self.session()
+                if session:
+                    adapter = session.get_adapter(req.url)
+
+            response = adapter.send(req, **kwargs)
+            response.history.append(r)
+
+            return response
+
+        return r
+
+    @property
+    def access_token(self):
+        return self._res.get('access_token')
+
+    @property
+    def urls(self):
+        if not self._res.get('urls'):
+            # NOTE(jkoelker) Bootstrap the URLs
+            self._login()
+
+        return self._res.get('urls')
+
+    @property
+    def user(self):
+        return self._res.get('user')
 
     def __call__(self, r):
-        if not self._access_token or time.time() >= self._access_token_timeout:
-            self._login(r.headers.copy())
+        if self.access_token:
+            r.headers['Authorization'] = 'Basic ' + self.access_token
 
-        r.headers['Authorization'] = 'Basic ' + self._access_token
+        r.register_hook('response', self._perhaps_relogin)
         return r
 
 
@@ -199,7 +259,8 @@ class Structure(NestBase):
 
 class Nest(object):
     def __init__(self, username, password, cache_ttl=270,
-                 user_agent='Nest/1.1.0.10 CFNetwork/548.0.4'):
+                 user_agent='Nest/1.1.0.10 CFNetwork/548.0.4',
+                 access_token=None, access_token_cache_file=None):
         self._urls = {}
         self._limits = {}
         self._user = None
@@ -223,8 +284,10 @@ class Nest(object):
 
         self._user_agent = user_agent
         self._session = requests.Session()
-        self._session.auth = NestAuth(username, password,
-                                      auth_callback=auth_callback)
+        auth = NestAuth(username, password, auth_callback=auth_callback,
+                        session=self._session, access_token=access_token,
+                        access_token_cache_file=access_token_cache_file)
+        self._session.auth = auth
 
         headers = {'user-agent': 'Nest/1.1.0.10 CFNetwork/548.0.4',
                    'X-nl-protocol-version': '1'}
@@ -242,7 +305,7 @@ class Nest(object):
         now = time.time()
 
         if not value or now - last_update > self._cache_ttl:
-            url = self.urls['transport_url'] + '/v2/mobile/' + self._user
+            url = self.urls['transport_url'] + '/v2/mobile/' + self.user
             response = self._session.get(url)
             response.raise_for_status()
             value = response.json()
@@ -264,8 +327,8 @@ class Nest(object):
 
     @property
     def urls(self):
-        if not self._urls:
-            # NOTE(jkoelker) Bootstrap the URLs (and the auth_callback data)
-            self._session.auth._login(self._session.headers.copy())
+        return self._session.auth.urls
 
-        return self._urls
+    @property
+    def user(self):
+        return self._session.auth.user

@@ -42,6 +42,12 @@ def parse_args():
 
     parser.set_defaults(**defaults)
 
+    parser.add_argument('--token-cache', dest='token_cache',
+                        help='auth access token', metavar='TOKEN_CACHE_FILE')
+
+    parser.add_argument('-t', '--token', dest='token',
+                        help='auth access token', metavar='TOKEN')
+
     parser.add_argument('-u', '--user', dest='user',
                         help='username for nest.com', metavar='USER')
 
@@ -111,7 +117,12 @@ def main():
 
     cmd = args.command
 
-    with nest.Nest(args.user, args.password) as napi:
+    token_cache = None
+    if args.token_cache:
+        token_cache = os.path.expanduser(args.token_cache)
+
+    with nest.Nest(args.user, args.password, access_token=args.token,
+                   access_token_cache_file=token_cache) as napi:
         if cmd == 'away':
             structure = napi.structures[0]
 
