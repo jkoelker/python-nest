@@ -50,6 +50,7 @@ class NestAuth(auth.AuthBase):
                 os.path.exists(access_token_cache_file)):
             with open(access_token_cache_file, 'r') as f:
                 self._res = json.load(f)
+                self._callback(self._res)
 
         if session is not None:
             session = weakref.ref(session)
@@ -58,10 +59,15 @@ class NestAuth(auth.AuthBase):
         self._adapter = adapters.HTTPAdapter()
 
     def _cache(self):
-        with os.fdopen(os.open(self._access_token_cache_file,
-                               os.O_WRONLY | os.O_CREAT, 0600),
-                       'w') as f:
-            json.dump(self._res, f)
+        if self._access_token_cache_file is not None:
+            with os.fdopen(os.open(self._access_token_cache_file,
+                                   os.O_WRONLY | os.O_CREAT, 0600),
+                           'w') as f:
+                json.dump(self._res, f)
+
+    def _callback(self, res):
+        if self.auth_callback is not None and callable(self.auth_callback):
+            self.auth_callback(self._res)
 
     def _login(self, headers=None):
         print "hi"
@@ -77,11 +83,8 @@ class NestAuth(auth.AuthBase):
         response.raise_for_status()
         self._res = response.json()
 
-        if self._access_token_cache_file is not None:
-            self._cache()
-
-        if self.auth_callback is not None and callable(self.auth_callback):
-            self.auth_callback(self._res)
+        self._cache()
+        self._callback(self._res)
 
     def _perhaps_relogin(self, r, **kwargs):
         if r.status_code == 401:
