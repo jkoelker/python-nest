@@ -51,14 +51,14 @@ class NestTZ(datetime.tzinfo):
         self._offset = datetime.timedelta(hours=float(gmt_offset))
         self._name = gmt_offset
 
-        def utcoffset(self, dt):
-            return self._offset
+    def utcoffset(self, dt):
+        return self._offset
 
-        def tzname(self, dt):
-            return self._name
+    def tzname(self, dt):
+        return self._name
 
-        def dst(self, dt):
-            return datetime.timedelta(0)
+    def dst(self, dt):
+        return datetime.timedelta(0)
 
 
 class NestAuth(auth.AuthBase):
