@@ -48,7 +48,7 @@ FAN_MAP = {'auto on': 'auto',
 
 class NestTZ(datetime.tzinfo):
     def __init__(self, gmt_offset):
-        self._offset = datetime.timedelta(int(gmt_offset))
+        self._offset = datetime.timedelta(float(gmt_offset))
         self._name = gmt_offset
 
         def utcoffset(self, dt):
