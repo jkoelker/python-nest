@@ -51,6 +51,10 @@ class NestTZ(datetime.tzinfo):
         self._offset = datetime.timedelta(hours=float(gmt_offset))
         self._name = gmt_offset
 
+    def __repr__(self):
+        return '<%s: gmt_offset=%s>' % (self.__class__.__name__,
+                                        self._name)
+
     def utcoffset(self, dt):
         return self._offset
 
