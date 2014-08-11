@@ -71,6 +71,15 @@ for f in structure.weather.daily:
     print '        Wind Dir: %s' % f.wind.direction
     print '        Wind Azimuth: %s' % f.wind.azimuth
     print '        Wind Speed: %s' % structure.weather.current.wind.kph
+
+
+# NOTE: By default all datetime objects are timezone unaware (UTC)
+#       By passing `local_time=True` to the `Nest` object datetime objects
+#       will be converted to the timezone reported by nest. If the `pytz`
+#       module is installed those timezone objects are used, else one is
+#       synthesized from the nest data
+napi = nest.Nest(username, password, local_time=True)
+print napi.structures[0].weather.current.dateimte.tzinfo
 ```
 
 In the API all temperature values are in degrees celsius. Helper functions
