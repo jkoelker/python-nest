@@ -6,6 +6,7 @@ by Scott M Baker, smbaker@gmail.com, http://www.smbaker.com/
 updated by Bob Pasker bob@pasker.net http://pasker.net
 '''
 
+import datetime
 import time
 import os
 import weakref
@@ -16,6 +17,11 @@ from requests import adapters
 from requests.compat import json
 from requests import hooks
 
+try:
+    import pytz
+except ImportError:
+    pytz = None
+
 
 LOGIN_URL = 'https://home.nest.com/user/login'
 AWAY_MAP = {'on': True,
@@ -24,6 +30,10 @@ AWAY_MAP = {'on': True,
             'home': False,
             True: True,
             False: False}
+AZIMUTH_MAP = {'N': 0.0, 'NNE': 22.5, 'NE': 45.0, 'ENE': 67.5, 'E': 90.0,
+               'ESE': 112.5, 'SE': 135.0, 'SSE': 157.5, 'S': 180.0,
+               'SSW': 202.5, 'SW': 225.0, 'WSW': 247.5, 'W': 270.0,
+               'WNW': 292.5, 'NW': 315.0, 'NNW': 337.5}
 FAN_MAP = {'auto on': 'auto',
            'on': 'on',
            'auto': 'auto',
@@ -34,6 +44,21 @@ FAN_MAP = {'auto on': 'auto',
            0: 'auto',
            True: 'on',
            False: 'auto'}
+
+
+class NestTZ(datetime.tzinfo):
+    def __init__(self, gmt_offset):
+        self._offset = datetime.timedelta(int(gmt_offset))
+        self._name = gmt_offset
+
+        def utcoffset(self, dt):
+            return self._offset
+
+        def tzname(self, dt):
+            return self._name
+
+        def dst(self, dt):
+            return datetime.timedelta(0)
 
 
 class NestAuth(auth.AuthBase):
@@ -129,10 +154,90 @@ class NestAuth(auth.AuthBase):
         return r
 
 
+class Wind(object):
+    def __init__(self, direction=None, kph=None):
+        self.direction = direction
+        self.kph = kph
+
+    @property
+    def azimuth(self):
+        return AZIMUTH_MAP[self.direction]
+
+
+class Forecast(object):
+    def __init__(self, forecast, tz=None):
+        self._forecast = forecast
+        self._tz = tz
+        self.condition = forecast.get('condition')
+        self.humidity = forecast['humidity']
+        self._icon = forecast.get('icon')
+        self._time = forecast.get('observation_time',
+                                  forecast.get('time',
+                                               forecast.get('date')))
+
+    def __repr__(self):
+        return '<%s: %s>' % (self.__class__.__name__,
+                             self.datetime.strftime('%Y-%m-%d %H:%M:%S'))
+
+    @property
+    def datetime(self):
+        return datetime.datetime.fromtimestamp(self._time, self._tz)
+
+    @property
+    def temperature(self):
+        if 'temp_low_c' in self._forecast:
+            return (self._forecast['temp_low_c'],
+                    self._forecast['temp_high_c'])
+
+        return self._forecast['temp_c']
+
+    @property
+    def wind(self):
+        return Wind(self._forecast['wind_dir'], self._forecast.get('wind_kph'))
+
+
+class Weather(object):
+    def __init__(self, weather, local_time):
+        self._weather = weather
+
+        self._tz = None
+        if local_time:
+            if pytz:
+                self._tz = pytz.timezone(weather['location']['timezone_long'])
+
+            else:
+                self._tz = NestTZ(weather['location']['gmt_offset'])
+
+    @property
+    def _current(self):
+        return self._weather['current']
+
+    @property
+    def _daily(self):
+        return self._weather['forecast']['daily']
+
+    @property
+    def _hourly(self):
+        return self._weather['forecast']['hourly']
+
+    @property
+    def current(self):
+        return Forecast(self._current, self._tz)
+
+    @property
+    def daily(self):
+        return [Forecast(f, self._tz) for f in self._daily]
+
+    @property
+    def hourly(self):
+        return [Forecast(f, self._tz) for f in self._hourly]
+
+
 class NestBase(object):
-    def __init__(self, serial, nest_api):
+    def __init__(self, serial, nest_api, local_time=False):
         self._serial = serial
         self._nest_api = nest_api
+        self._local_time = local_time
 
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, self.name)
@@ -144,6 +249,14 @@ class NestBase(object):
         response.raise_for_status()
 
         self._nest_api._bust_cache()
+
+    @property
+    def _weather(self):
+        return self._nest_api._weather[self.postal_code]
+
+    @property
+    def weather(self):
+        return Weather(self._weather, self._local_time)
 
     @property
     def name(self):
@@ -186,6 +299,10 @@ class Device(NestBase):
     @name.setter
     def name(self, value):
         self._set('shared', {'name': value})
+
+    @property
+    def postal_code(self):
+        return self._device['postal_code']
 
     @property
     def temperature(self):
@@ -235,7 +352,8 @@ class Structure(NestBase):
 
     @property
     def devices(self):
-        return [Device(devid.lstrip('device.'), self._nest_api)
+        return [Device(devid.lstrip('device.'), self._nest_api,
+                       self._local_time)
                 for devid in self._structure['devices']]
 
     @property
@@ -259,10 +377,31 @@ class Structure(NestBase):
         return self._structure['postal_code']
 
 
+class WeatherCache(object):
+    def __init__(self, nest_api, cache_ttl=270):
+        self._nest_api = nest_api
+        self._cache_ttl = cache_ttl
+        self._cache = {}
+
+    def __getitem__(self, postal_code):
+        value, last_update = self._cache.get(postal_code, (None, 0))
+        now = time.time()
+
+        if not value or now - last_update > self._cache_ttl:
+            url = self._nest_api.urls['weather_url'] + postal_code
+            response = self._nest_api._session.get(url)
+            response.raise_for_status()
+            value = response.json()[postal_code]
+            self._cache[postal_code] = (value, now)
+
+        return value
+
+
 class Nest(object):
     def __init__(self, username, password, cache_ttl=270,
                  user_agent='Nest/1.1.0.10 CFNetwork/548.0.4',
-                 access_token=None, access_token_cache_file=None):
+                 access_token=None, access_token_cache_file=None,
+                 local_time=False):
         self._urls = {}
         self._limits = {}
         self._user = None
@@ -273,6 +412,8 @@ class Nest(object):
         self._email = None
         self._cache_ttl = cache_ttl
         self._cache = (None, 0)
+        self._weather = WeatherCache(self)
+        self._local_time = local_time
 
         def auth_callback(result):
             self._urls = result['urls']
@@ -320,12 +461,13 @@ class Nest(object):
 
     @property
     def devices(self):
-        return [Device(devid.lstrip('device.'), self)
+        return [Device(devid.lstrip('device.'), self, self._local_time)
                 for devid in self._status['device']]
 
     @property
     def structures(self):
-        return [Structure(stid, self) for stid in self._status['structure']]
+        return [Structure(stid, self, self._local_time)
+                for stid in self._status['structure']]
 
     @property
     def urls(self):
