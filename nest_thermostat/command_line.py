@@ -26,15 +26,15 @@ def parse_args():
 
     args, remaining_argv = conf_parser.parse_known_args()
 
-    defaults = {}
+    defaults = {'celsius': False}
     config_file = os.path.expanduser(args.conf)
     if os.path.exists(config_file):
         config = configparser.SafeConfigParser()
         config.read([config_file])
         if config.has_section('nest'):
-            defaults = dict(config.items('nest'))
+            defaults.update(dict(config.items('nest')))
         else:
-            defaults = dict(config.items("DEFAULT"))
+            defaults.update(dict(config.items('DEFAULT')))
 
     description = 'Command line interface to Nest™ Thermostats'
     parser = argparse.ArgumentParser(description=description,
@@ -56,7 +56,6 @@ def parse_args():
                         help='password for nest.com', metavar='PASSWORD')
 
     parser.add_argument('-c', '--celsius', dest='celsius', action='store_true',
-                        default=False,
                         help='use celsius instead of farenheit')
 
     parser.add_argument('-s', '--serial', dest='serial',
