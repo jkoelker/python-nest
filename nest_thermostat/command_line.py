@@ -198,7 +198,13 @@ def main():
             data.update(device._device)
 
             for k in sorted(data.keys()):
-                print k + '.'*(32-len(k)) + ':', data[k]
+                if any(intag in k for intag in ('temp','away', 'threshold')) and not any(notag in k for notag in ('type','pin_hash','scale','enabled')):
+                  try:
+                    print k + '.'*(35-len(k)) + ':', '%0.1f' % display_temp(data[k])
+                  except Exception:
+                    print k + '.'*(35-len(k)) + ':', data[k]
+                else:
+                  print k + '.'*(35-len(k)) + ':', data[k]
 
 
 if __name__ == '__main__':
