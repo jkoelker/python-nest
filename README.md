@@ -1,10 +1,15 @@
 #nest_thermostat
 
 **a Python interface for the Nest Thermostat**
- 
+
 *fork of pynest by Scott M Baker, smbaker@gmail.com, http://www.smbaker.com/*
 
 ##Installation
+
+For this fork
+`[sudo] python setup.py install`
+
+For earlier version maintained by FiloSottile at https://github.com/FiloSottile/nest_thermostat
 `[sudo] pip install nest-thermostat`
 
 ##Usage
