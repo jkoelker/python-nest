@@ -7,9 +7,11 @@
 ##Installation
 
 For this fork
+
 `[sudo] python setup.py install`
 
 For earlier version maintained by FiloSottile at https://github.com/FiloSottile/nest_thermostat
+
 `[sudo] pip install nest-thermostat`
 
 ##Usage
