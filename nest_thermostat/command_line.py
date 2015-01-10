@@ -99,6 +99,12 @@ def parse_args():
 
     subparsers.add_parser('target', help='show current temp target')
     subparsers.add_parser('humid', help='show current humidity')
+    
+    target_hum = subparsers.add_parser('target_hum', help='show/set target humidty')
+    target_hum.add_argument('humidity', nargs='*', 
+    						help='specify target humidity value or auto '
+    							 'to auto-select a humidity based on outside temp')
+    							 
     subparsers.add_parser('show', help='show everything')
 
     return parser.parse_args()
@@ -182,6 +188,12 @@ def main():
 
         elif cmd == 'humid':
             print device.humidity
+            
+        elif cmd == 'target_hum':
+        	if args.humidity:
+        		device.target_humidity = args.humidity[0]
+        	
+        	print device.target_humidity
 
         elif cmd == 'target':
             target = device.target

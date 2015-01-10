@@ -289,6 +289,36 @@ class Device(NestBase):
         return self._device['current_humidity']
 
     @property
+    def target_humidity(self):        
+    	return self._device['target_humidity']
+        
+    @target_humidity.setter
+    def target_humidity(self, value):
+    	if value == 'auto':
+    		
+    		if self._weather['current']['temp_c'] >=4.44:
+    			hum_value = 45
+    		elif self._weather['current']['temp_c'] >=-1.11:
+    			hum_value = 40
+    		elif self._weather['current']['temp_c'] >=-6.67:
+    			hum_value = 35
+    		elif self._weather['current']['temp_c'] >=-12.22:
+    			hum_value = 30
+    		elif self._weather['current']['temp_c'] >=-17.78:
+    			hum_value = 25
+    		elif self._weather['current']['temp_c'] >=-23.33:
+    			hum_value = 20
+    		elif self._weather['current']['temp_c'] >=-28.89:
+    			hum_value = 15
+    		elif self._weather['current']['temp_c'] >=-34.44:
+    			hum_value = 10		
+    	else:
+    		hum_value = value
+    		
+    	if float(hum_value) <> self._device['target_humidity']:
+    		self._set('device', {'target_humidity': float(hum_value)})
+
+    @property
     def mode(self):
         return self._shared['target_temperature_type']
 

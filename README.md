@@ -107,12 +107,12 @@ For "advanced" usage such as token caching, use the source, luke!
 ```
 usage: nest [-h] [--conf FILE] [--token-cache TOKEN_CACHE_FILE] [-t TOKEN]
             [-u USER] [-p PASSWORD] [-c] [-s SERIAL] [-i INDEX]
-            {temp,fan,mode,away,target,humid,show} ...
+            {temp,fan,mode,away,target,humid,target_hum,show} ...
 
 Command line interface to Nest™ Thermostats
 
 positional arguments:
-  {temp,fan,mode,away,target,humid,show}
+  {temp,fan,mode,away,target,humid,target_hum,show}
                         command help
     temp                show/set temperature
     fan                 set fan "on" or "auto"
@@ -120,7 +120,12 @@ positional arguments:
     away                show/set current away status
     target              show current temp target
     humid               show current humidity
+    target_hum          show/set target humidity
+    					specify target humidity value or auto to auto-select a
+              			humidity based on outside temp
     show                show everything
+
+
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -142,7 +147,8 @@ optional arguments:
 examples:
     nest --user joe@user.com --password swordfish temp 73
     nest --user joe@user.com --password swordfish fan auto
-```
+    nest --user joe@user.com --password swordfish target_hum 35
+```						
 
 A configuration file can also be specified to prevent username/password repitition.
 
