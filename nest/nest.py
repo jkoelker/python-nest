@@ -1,10 +1,4 @@
-#! /usr/bin/python
-
-'''
-nest_thermostat -- a python interface to the Nest Thermostat
-by Scott M Baker, smbaker@gmail.com, http://www.smbaker.com/
-updated by Bob Pasker bob@pasker.net http://pasker.net
-'''
+# -*- coding:utf-8 -*-
 
 import datetime
 import time
