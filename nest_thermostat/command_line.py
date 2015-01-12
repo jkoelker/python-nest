@@ -5,6 +5,8 @@
 nest.py -- a python interface to the Nest Thermostats
 '''
 
+from __future__ import print_function
+
 import argparse
 # TODO(jkoelker) six?
 import ConfigParser as configparser
@@ -140,7 +142,7 @@ def main():
             elif args.home:
                 structure.away = False
 
-            print structure.away
+            print(structure.away)
             return
 
         if args.serial:
@@ -162,7 +164,7 @@ def main():
                     temp = convert_temp(args.temperature)
                     device.temperature = temp
 
-            print '%0.1f' % display_temp(device.temperature)
+            print('%0.1f' % display_temp(device.temperature))
 
         elif cmd == 'fan':
             if args.auto:
@@ -171,7 +173,7 @@ def main():
             elif args.on:
                 device.fan = True
 
-            print device.fan
+            print(device.fan)
 
         elif cmd == 'mode':
             if args.cool:
@@ -186,26 +188,26 @@ def main():
             elif args.off:
                 device.mode('off')
 
-            print device.mode
+            print(device.mode)
 
         elif cmd == 'humid':
-            print device.humidity
+            print(device.humidity)
 
         elif cmd == 'target_hum':
             if args.humidity:
                 device.target_humidity = args.humidity[0]
 
-            print device.target_humidity
+            print(device.target_humidity)
 
         elif cmd == 'target':
             target = device.target
 
             if isinstance(target, tuple):
-                print 'Lower: %0.1f' % display_temp(target[0])
-                print 'Upper: %0.1f' % display_temp(target[1])
+                print('Lower: %0.1f' % display_temp(target[0]))
+                print('Upper: %0.1f' % display_temp(target[1]))
 
             else:
-                print '%0.1f' % display_temp(target)
+                print('%0.1f' % display_temp(target))
 
         elif cmd == 'show':
             data = device._shared.copy()
@@ -219,13 +221,13 @@ def main():
                 if intag and not nottag:
                     try:
                         temp_data = '%0.1f' % display_temp(data[k])
-                        print k + '.'*(35-len(k)) + ':', temp_data
+                        print(k + '.'*(35-len(k)) + ':', temp_data)
 
                     except Exception:
-                        print k + '.'*(35-len(k)) + ':', data[k]
+                        print(k + '.'*(35-len(k)) + ':', data[k])
 
                 else:
-                    print k + '.'*(35-len(k)) + ':', data[k]
+                    print(k + '.'*(35-len(k)) + ':', data[k])
 
 
 if __name__ == '__main__':
