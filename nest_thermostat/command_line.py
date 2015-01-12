@@ -1,5 +1,5 @@
 #! /usr/bin/python
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 
 '''
 nest.py -- a python interface to the Nest Thermostats
