@@ -99,12 +99,14 @@ def parse_args():
 
     subparsers.add_parser('target', help='show current temp target')
     subparsers.add_parser('humid', help='show current humidity')
-    
-    target_hum = subparsers.add_parser('target_hum', help='show/set target humidty')
-    target_hum.add_argument('humidity', nargs='*', 
-    						help='specify target humidity value or auto '
-    							 'to auto-select a humidity based on outside temp')
-    							 
+
+    target_hum = subparsers.add_parser('target_hum',
+                                       help='show/set target humidty')
+    target_hum.add_argument('humidity', nargs='*',
+                            help='specify target humidity value or auto '
+                                 'to auto-select a humidity based on outside '
+                                 'temp')
+
     subparsers.add_parser('show', help='show everything')
 
     return parser.parse_args()
@@ -188,12 +190,12 @@ def main():
 
         elif cmd == 'humid':
             print device.humidity
-            
+
         elif cmd == 'target_hum':
-        	if args.humidity:
-        		device.target_humidity = args.humidity[0]
-        	
-        	print device.target_humidity
+            if args.humidity:
+                device.target_humidity = args.humidity[0]
+
+            print device.target_humidity
 
         elif cmd == 'target':
             target = device.target
@@ -210,13 +212,20 @@ def main():
             data.update(device._device)
 
             for k in sorted(data.keys()):
-                if any(intag in k for intag in ('temp','away', 'threshold')) and not any(notag in k for notag in ('type','pin_hash','scale','enabled')):
-                  try:
-                    print k + '.'*(35-len(k)) + ':', '%0.1f' % display_temp(data[k])
-                  except Exception:
-                    print k + '.'*(35-len(k)) + ':', data[k]
+                intag = any(intag in k for intag in ('temp', 'away',
+                                                     'threshold'))
+                nottag = any(notag in k for notag in ('type', 'pin_hash',
+                                                      'scale', 'enabled'))
+                if intag and not nottag:
+                    try:
+                        temp_data = '%0.1f' % display_temp(data[k])
+                        print k + '.'*(35-len(k)) + ':', temp_data
+
+                    except Exception:
+                        print k + '.'*(35-len(k)) + ':', data[k]
+
                 else:
-                  print k + '.'*(35-len(k)) + ':', data[k]
+                    print k + '.'*(35-len(k)) + ':', data[k]
 
 
 if __name__ == '__main__':
