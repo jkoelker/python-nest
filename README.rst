@@ -162,6 +162,7 @@ A configuration file can also be specified to prevent username/password repititi
 
 
 .. code-block:: ini
+
     [DEFAULT]
     user = joe@user.com
     password = swordfish
