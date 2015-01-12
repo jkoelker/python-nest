@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/jkoelker/nest_thermostat.svg)](https://travis-ci.org/jkoelker/nest_thermostat)
+
 #nest_thermostat
 
 **a Python interface for the Nest Thermostat**
