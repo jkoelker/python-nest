@@ -3,16 +3,16 @@
 
 from setuptools import setup
 
-setup(name='nest-thermostat',
-      version='1.2',
+setup(name='python-nest',
+      version='2.0',
       description='Python API and command line tool for talking to the '
                   'Nest™ Thermostat',
-      author='Scott Baker',
-      author_email='smbaker@gmail.com',
-      maintainer='Filippo Valsorda',
-      maintainer_email='hi@filippo.io',
-      url='https://github.com/FiloSottile/nest_thermostat/',
-      packages=['nest_thermostat'],
+      long_description=open('README.rst').read(),
+      keywords='nest thermostat',
+      author='Jason Kölker',
+      author_email='jason@koelker.net',
+      url='https://github.com/jkoelker/python-nest/',
+      packages=['nest'],
       install_requires=['requests'],
       entry_points={
           'console_scripts': ['nest=nest_thermostat.command_line:main'],
