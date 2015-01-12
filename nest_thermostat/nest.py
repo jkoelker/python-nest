@@ -16,6 +16,7 @@ from requests import auth
 from requests import adapters
 from requests.compat import json
 from requests import hooks
+import collections
 
 try:
     import pytz
@@ -90,12 +91,12 @@ class NestAuth(auth.AuthBase):
     def _cache(self):
         if self._access_token_cache_file is not None:
             with os.fdopen(os.open(self._access_token_cache_file,
-                                   os.O_WRONLY | os.O_CREAT, 0600),
+                                   os.O_WRONLY | os.O_CREAT, 0o600),
                            'w') as f:
                 json.dump(self._res, f)
 
     def _callback(self, res):
-        if self.auth_callback is not None and callable(self.auth_callback):
+        if self.auth_callback is not None and isinstance(self.auth_callback, collections.Callable):
             self.auth_callback(self._res)
 
     def _login(self, headers=None):
@@ -315,7 +316,7 @@ class Device(NestBase):
     	else:
     		hum_value = value
     		
-    	if float(hum_value) <> self._device['target_humidity']:
+    	if float(hum_value) != self._device['target_humidity']:
     		self._set('device', {'target_humidity': float(hum_value)})
 
     @property
