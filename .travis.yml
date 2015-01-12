@@ -5,6 +5,6 @@ python:
 install:
   - pip install flake8 . --use-mirrors
 before_script:
-  - "flake8 --show-source --builtins=_ quark"
+  - "flake8 --show-source --builtins=_ nest_thermostat"
 script:
   - echo true
