@@ -2,8 +2,8 @@
 Python API and command line tool for the Nest™ Thermostat
 =========================================================
 
-.. image:: https://travis-ci.org/jkoelker/nest_thermostat.svg?branch=master
-    :target: https://travis-ci.org/jkoelker/nest_thermostat
+.. image:: https://travis-ci.org/jkoelker/python-nest.svg?branch=master
+    :target: https://travis-ci.org/jkoelker/python-nest
 
 
 Installation
@@ -20,7 +20,7 @@ Usage
 Module
 ------
 
-You can import the module as `nest_thermostat`.
+You can import the module as `nest`.
 
 .. code-block:: python
 
