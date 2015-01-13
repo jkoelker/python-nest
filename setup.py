@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
 
+import io
+
 from setuptools import setup
 
 setup(name='python-nest',
-      version='2.0',
+      version='2.1',
       description='Python API and command line tool for talking to the '
                   'Nest™ Thermostat',
-      long_description=open('README.rst').read(),
+      long_description=io.open('README.rst', encoding='UTF-8').read(),
       keywords='nest thermostat',
       author='Jason Kölker',
       author_email='jason@koelker.net',
