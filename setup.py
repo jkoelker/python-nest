@@ -6,7 +6,7 @@ import io
 from setuptools import setup
 
 setup(name='python-nest',
-      version='2.2',
+      version='2.3',
       description='Python API and command line tool for talking to the '
                   'Nest™ Thermostat',
       long_description=io.open('README.rst', encoding='UTF-8').read(),
