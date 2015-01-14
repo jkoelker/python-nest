@@ -131,6 +131,9 @@ def main():
     if args.token_cache:
         token_cache = os.path.expanduser(args.token_cache)
 
+    # NOTE(jkoelker) Token caching is currently broken
+    token_cache = None
+
     with nest.Nest(args.user, args.password, access_token=args.token,
                    access_token_cache_file=token_cache) as napi:
         if cmd == 'away':
