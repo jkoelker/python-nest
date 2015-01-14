@@ -98,7 +98,7 @@ for conversion are in the `utils` module:
 
 .. code-block:: python
 
-    from nest_thermostat import utils as nest_utils
+    from nest import utils as nest_utils
     temp = 23.5
     fahrenheit = nest_utils.c_to_f(temp)
     temp == nest_utils.f_to_c(fahrenheit)
