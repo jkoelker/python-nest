@@ -129,8 +129,8 @@ Command line
         target              show current temp target
         humid               show current humidity
         target_hum          show/set target humidity
-        					specify target humidity value or auto to auto-select a
-                  			humidity based on outside temp
+                                specify target humidity value or auto to auto-select a
+                                humidity based on outside temp
         show                show everything
 
 
