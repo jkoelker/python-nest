@@ -64,6 +64,10 @@ def parse_args():
                         help='optional, specify serial number of nest '
                              'thermostat to talk to')
 
+    parser.add_argument('-S', '--structure', dest='structure',
+                        help='optional, specify structure name to'
+                             'scope device actions')
+
     parser.add_argument('-i', '--index', dest='index', default=0, type=int,
                         help='optional, specify index number of nest to '
                              'talk to')
@@ -137,7 +141,27 @@ def main():
     with nest.Nest(args.user, args.password, access_token=args.token,
                    access_token_cache_file=token_cache) as napi:
         if cmd == 'away':
-            structure = napi.structures[0]
+            structure = None
+
+            if args.structure:
+                struct = [s for s in napi.structures
+                          if s.name == args.structure]
+                if struct:
+                    structure = struct[0]
+
+            else:
+                if args.serial:
+                    serial = args.serial
+                else:
+                    serial = napi.devices[args.index]._serial
+
+                struct = [s for s in napi.structures for d in s.devices
+                          if d._serial == serial]
+                if struct:
+                    structure = struct[0]
+
+            if not structure:
+                structure = napi.structures[0]
 
             if args.away:
                 structure.away = True
@@ -150,6 +174,14 @@ def main():
 
         if args.serial:
             device = nest.Device(args.serial, napi)
+
+        elif args.structure:
+            struct = [s for s in napi.structures if s.name == args.structure]
+            if struct:
+                device = struct[0].devices[args.index]
+
+            else:
+                device = napi.structures[0].devices[args.index]
 
         else:
             device = napi.devices[args.index]
