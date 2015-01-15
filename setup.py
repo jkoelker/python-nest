@@ -5,8 +5,17 @@ import io
 
 from setuptools import setup
 
+
+# NOTE(jkoelker) Subjective guidelines for Major.Minor.Micro ;)
+#                Bumping Major means an API contract change.
+#                Bumping Minor means API bugfix or new functionality.
+#                Bumping Micro means CLI change of any kind unless it is
+#                    significant enough to warrant a minor/major bump.
+version = '2.3.1'
+
+
 setup(name='python-nest',
-      version='2.3',
+      version=version,
       description='Python API and command line tool for talking to the '
                   'Nest™ Thermostat',
       long_description=io.open('README.rst', encoding='UTF-8').read(),
