@@ -75,7 +75,7 @@ def parse_args():
     subparsers = parser.add_subparsers(dest='command',
                                        help='command help')
     temp = subparsers.add_parser('temp', help='show/set temperature')
-    temp.add_argument('temperature', nargs='*',
+    temp.add_argument('temperature', nargs='*', type=float,
                       help='target tempterature to set device to')
 
     fan = subparsers.add_parser('fan', help='set fan "on" or "auto"')
@@ -192,8 +192,9 @@ def main():
                     if device.mode != 'range':
                         device.mode = 'range'
 
-                    device.temperature = (args.temperature[0],
-                                          args.temperature[1])
+                    lower = convert_temp(args.temperature[0])
+                    upper = convert_temp(args.temperature[1])
+                    device.temperature = (lower, upper)
 
                 else:
                     temp = convert_temp(args.temperature[0])
