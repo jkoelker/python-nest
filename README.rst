@@ -153,8 +153,12 @@ Command line
                             optional, specify index number of nest to talk to
 
     examples:
+        # If your nest is not in range mode
         nest --user joe@user.com --password swordfish temp 73
-        nest --user joe@user.com --password swordfish fan auto
+        # If your nest is in range mode
+        nest --user joe@user.com --password swordfish temp 66 73
+
+        nest --user joe@user.com --password swordfish fan --auto
         nest --user joe@user.com --password swordfish target_hum 35
 
 
