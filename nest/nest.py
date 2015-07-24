@@ -273,6 +273,35 @@ class Device(NestBase):
         return self._nest_api._status['shared'][self._serial]
 
     @property
+    def _struct_serial(self):
+        link = self._nest_api._status['link'][self._serial]
+        return link['structure'].lstrip('structure.')
+
+    @property
+    def _wheres(self):
+        return self._nest_api._status['where'][self._struct_serial]['wheres']
+
+    @property
+    def where_name(self):
+        for where in self._wheres:
+            if where['where_id'] == self._device['where_id']:
+                return where['name']
+
+    @where_name.setter
+    def where_name(self, value):
+        for where in self._wheres:
+            if where['name'] == value:
+                self.where_id = where['where_id']
+
+    @property
+    def where_id(self):
+        return self._device['where_id']
+
+    @where_id.setter
+    def where_id(self, value):
+        self._set('device', {'where_id': value})
+
+    @property
     def fan(self):
         return self._shared['hvac_fan_state']
 
@@ -362,6 +391,38 @@ class Device(NestBase):
             data['target_temperature'] = value
 
         self._set('shared', data)
+
+    @property
+    def away_temperature_low(self):
+        return self._device['away_temperature_low']
+
+    @away_temperature_low.setter
+    def away_temperature_low(self, value):
+        self._set('device', {'away_temperature_low': value})
+
+    @property
+    def away_temperature_low_enabled(self):
+        return self._device['away_temperature_low_enabled']
+
+    @away_temperature_low_enabled.setter
+    def away_temperature_low_enabled(self, value):
+        self._set('device', {'away_temperature_low_enabled': value})
+
+    @property
+    def away_temperature_high(self):
+        return self._device['away_temperature_high']
+
+    @away_temperature_high.setter
+    def away_temperature_high(self, value):
+        self._set('device', {'away_temperature_high': value})
+
+    @property
+    def away_temperature_high_enabled(self):
+        return self._device['away_temperature_high_enabled']
+
+    @away_temperature_high_enabled.setter
+    def away_temperature_high_enabled(self, value):
+        self._set('device', {'away_temperature_high_enabled': value})
 
 
 class Structure(NestBase):
