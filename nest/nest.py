@@ -442,6 +442,14 @@ class Structure(NestBase):
         self._set({'away': AWAY_MAP[value]})
 
     @property
+    def auto_away_setter(self):
+        return self._structure['away_setter']
+
+    @auto_away_setter.setter
+    def auto_away_setter(self, value):
+        self._set({'away_setter': value})
+
+    @property
     def devices(self):
         return [Device(devid.lstrip('device.'), self._nest_api,
                        self._local_time)
