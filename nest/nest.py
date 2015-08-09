@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 
+import collections
 import copy
 import datetime
 import time
@@ -12,7 +13,6 @@ from requests import auth
 from requests import adapters
 from requests.compat import json
 from requests import hooks
-import collections
 
 try:
     import pytz
@@ -41,6 +41,9 @@ FAN_MAP = {'auto on': 'auto',
            0: 'auto',
            True: 'on',
            False: 'auto'}
+
+
+LowHighTuple = collections.namedtuple('LowHighTuple', ('low', 'high'))
 
 
 class NestTZ(datetime.tzinfo):
@@ -188,8 +191,8 @@ class Forecast(object):
     @property
     def temperature(self):
         if 'temp_low_c' in self._forecast:
-            return (self._forecast['temp_low_c'],
-                    self._forecast['temp_high_c'])
+            return LowHighTuple(self._forecast['temp_low_c'],
+                                self._forecast['temp_high_c'])
 
         return self._forecast['temp_c']
 
@@ -371,8 +374,9 @@ class Device(NestBase):
     @property
     def target(self):
         if self._shared['target_temperature_type'] == 'range':
-            return (self._shared['target_temperature_low'],
-                    self._shared['target_temperature_high'])
+            low = self._shared['target_temperature_low']
+            high = self._shared['target_temperature_high']
+            return LowHighTuple(low, high)
 
         return self._shared['target_temperature']
 
@@ -400,7 +404,7 @@ class Device(NestBase):
         if self._device['away_temperature_high_enabled']:
             high = self._device['away_temperature_high']
 
-        return (low, high)
+        return LowHighTuple(low, high)
 
     @away_temperature.setter
     def away_temperature(self, value):
