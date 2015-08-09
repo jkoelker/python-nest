@@ -293,10 +293,11 @@ class Device(NestBase):
 
     @where.setter
     def where(self, value):
+        value = value.lower()
         ident = self.structure.wheres.get(value)
 
         if ident is None:
-            self.structure.add_where(ident)
+            self.structure.add_where(value)
             ident = self.structure.wheres[value]
 
         self._set('device', {'where_id': ident})
