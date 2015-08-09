@@ -1,8 +1,10 @@
 # -*- coding:utf-8 -*-
 
+import copy
 import datetime
 import time
 import os
+import uuid
 import weakref
 
 import requests
@@ -273,33 +275,28 @@ class Device(NestBase):
         return self._nest_api._status['shared'][self._serial]
 
     @property
-    def _struct_serial(self):
-        link = self._nest_api._status['link'][self._serial]
-        return link['structure'].lstrip('structure.')
+    def _link(self):
+        return self._nest_api._status['link'][self._serial]
 
     @property
-    def _wheres(self):
-        return self._nest_api._status['where'][self._struct_serial]['wheres']
+    def structure(self):
+        return Structure(self._link['structure'].lstrip('structure.'),
+                         self._nest_api, self._local_time)
 
     @property
-    def where_name(self):
-        for where in self._wheres:
-            if where['where_id'] == self._device['where_id']:
-                return where['name']
+    def where(self):
+        if 'where_id' in self._device:
+            return self.structure.wheres[self._device['where_id']]
 
-    @where_name.setter
-    def where_name(self, value):
-        for where in self._wheres:
-            if where['name'] == value:
-                self.where_id = where['where_id']
+    @where.setter
+    def where(self, value):
+        ident = self.structure.wheres.get(value)
 
-    @property
-    def where_id(self):
-        return self._device['where_id']
+        if ident is None:
+            self.structure.add_where(ident)
+            ident = self.structure.wheres[value]
 
-    @where_id.setter
-    def where_id(self, value):
-        self._set('device', {'where_id': value})
+        self._set('device', {'where_id': ident})
 
     @property
     def fan(self):
@@ -393,45 +390,49 @@ class Device(NestBase):
         self._set('shared', data)
 
     @property
-    def away_temperature_low(self):
-        return self._device['away_temperature_low']
+    def away_temperature(self):
+        low = None
+        high = None
 
-    @away_temperature_low.setter
-    def away_temperature_low(self, value):
-        self._set('device', {'away_temperature_low': value})
+        if self._device['away_temperature_low_enabled']:
+            low = self._device['away_temperature_low']
 
-    @property
-    def away_temperature_low_enabled(self):
-        return self._device['away_temperature_low_enabled']
+        if self._device['away_temperature_high_enabled']:
+            high = self._device['away_temperature_high']
 
-    @away_temperature_low_enabled.setter
-    def away_temperature_low_enabled(self, value):
-        self._set('device', {'away_temperature_low_enabled': value})
+        return (low, high)
 
-    @property
-    def away_temperature_high(self):
-        return self._device['away_temperature_high']
+    @away_temperature.setter
+    def away_temperature(self, value):
+        low, high = value
 
-    @away_temperature_high.setter
-    def away_temperature_high(self, value):
-        self._set('device', {'away_temperature_high': value})
+        data = {}
+        if low is not None:
+            data['away_temperature_low'] = low
+            data['away_temperature_low_enabled'] = True
 
-    @property
-    def away_temperature_high_enabled(self):
-        return self._device['away_temperature_high_enabled']
+        else:
+            data['away_temperature_low_enabled'] = False
 
-    @away_temperature_high_enabled.setter
-    def away_temperature_high_enabled(self, value):
-        self._set('device', {'away_temperature_high_enabled': value})
+        if high is not None:
+            data['away_temperature_high'] = high
+            data['away_temperature_high_enabled'] = True
+
+        else:
+            data['away_temperature_high_enabled'] = False
+
+        self._set('device', data)
 
 
 class Structure(NestBase):
-    def _set(self, data):
-        super(Structure, self)._set('structure', data)
-
     @property
     def _structure(self):
         return self._nest_api._status['structure'][self._serial]
+
+    def _set_away(self, value, auto_away=False):
+        self._set('structure', {'away': AWAY_MAP[value],
+                                'away_timestamp': int(time.time()),
+                                'away_setter': int(auto_away)})
 
     @property
     def away(self):
@@ -439,15 +440,7 @@ class Structure(NestBase):
 
     @away.setter
     def away(self, value):
-        self._set({'away': AWAY_MAP[value]})
-
-    @property
-    def auto_away_setter(self):
-        return self._structure['away_setter']
-
-    @auto_away_setter.setter
-    def auto_away_setter(self, value):
-        self._set({'away_setter': value})
+        self._set_away(value)
 
     @property
     def devices(self):
@@ -461,7 +454,7 @@ class Structure(NestBase):
 
     @name.setter
     def name(self, value):
-        self._set({'name': value})
+        self._set('structure', {'name': value})
 
     @property
     def location(self):
@@ -474,6 +467,51 @@ class Structure(NestBase):
     @property
     def postal_code(self):
         return self._structure['postal_code']
+
+    @property
+    def _wheres(self):
+        return self._nest_api._status['where'][self._serial]['wheres']
+
+    @property
+    def wheres(self):
+        ret = {w['name'].lower(): w['where_id'] for w in self._wheres}
+        ret.update({v: k for k, v in ret.items()})
+        return ret
+
+    @wheres.setter
+    def wheres(self, value):
+        self._set('where', {'wheres': value})
+
+    def add_where(self, name, ident=None):
+        name = name.lower()
+
+        if name in self.wheres:
+            return self.wheres[name]
+
+        name = ' '.join([n.capitalize() for n in name.split()])
+        wheres = copy.copy(self._wheres)
+
+        if ident is None:
+            ident = str(uuid.uuid4())
+
+        wheres.append({'name': name, 'where_id': ident})
+        self.wheres = wheres
+
+        return self.add_where(name)
+
+    def remove_where(self, name):
+        name = name.lower()
+
+        if name not in self.wheres:
+            return None
+
+        ident = self.wheres[name]
+
+        wheres = [w for w in copy.copy(self._wheres)
+                  if w['name'] != name and w['where_id'] != ident]
+
+        self.wheres = wheres
+        return ident
 
 
 class WeatherCache(object):
