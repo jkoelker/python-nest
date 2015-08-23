@@ -40,6 +40,22 @@ You can import the module as `nest`.
             print '        Device: %s' % device.name
             print '            Temp: %0.1f' % device.temperature
 
+    # Access advanced structure properties:
+    for structure in napi.structures:
+        print 'Structure   : %s' % structure.name
+        print ' Postal Code                    : %s' % structure.postal_code
+        print ' Country                        : %s' % structure.country_code
+        print ' dr_reminder_enabled            : %s' % structure.dr_reminder_enabled
+        print ' emergency_contact_description  : %s' % structure.emergency_contact_description
+        print ' emergency_contact_type         : %s' % structure.emergency_contact_type
+        print ' enhanced_auto_away_enabled     : %s' % structure.enhanced_auto_away_enabled
+        print ' eta_preconditioning_active     : %s' % structure.eta_preconditioning_active
+        print ' house_type                     : %s' % structure.house_type
+        print ' hvac_safety_shutoff_enabled    : %s' % structure.hvac_safety_shutoff_enabled
+        print ' num_thermostats                : %s' % structure.num_thermostats
+        print ' measurement_scale              : %s' % structure.measurement_scale
+        print ' renovation_date                : %s' % structure.renovation_date
+        print ' structure_area                 : %s' % structure.structure_area
 
     # The Nest object can also be used as a context manager
     with nest.Nest(username, password) as napi:
