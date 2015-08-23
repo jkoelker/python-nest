@@ -448,7 +448,7 @@ class Structure(NestBase):
         self._set_away(value)
 
     @property
-    def county_code(self):
+    def country_code(self):
         return self._structure['country_code']
 
     @property
