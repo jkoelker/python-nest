@@ -48,6 +48,7 @@ You can import the module as `nest`.
         print ' dr_reminder_enabled            : %s' % structure.dr_reminder_enabled
         print ' emergency_contact_description  : %s' % structure.emergency_contact_description
         print ' emergency_contact_type         : %s' % structure.emergency_contact_type
+        print ' emergency_contact_phone        : %s' % structure.emergency_contact_phone
         print ' enhanced_auto_away_enabled     : %s' % structure.enhanced_auto_away_enabled
         print ' eta_preconditioning_active     : %s' % structure.eta_preconditioning_active
         print ' house_type                     : %s' % structure.house_type
