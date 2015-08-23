@@ -8,6 +8,7 @@ _THIRTYTWO = decimal.Decimal(32)
 _ONEPOINTEIGHT = decimal.Decimal(18) / decimal.Decimal(10)
 _TENPOINTSEVENSIXFOUR = decimal.Decimal(10764) / decimal.Decimal(1000)
 
+
 def f_to_c(temp):
     temp = decimal.Decimal(temp)
     return float((temp - _THIRTYTWO) / _ONEPOINTEIGHT)
