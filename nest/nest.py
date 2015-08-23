@@ -282,6 +282,10 @@ class Device(NestBase):
         return self._nest_api._status['link'][self._serial]
 
     @property
+    def _track(self):
+        return self._nest_api._status['track'][self._serial]
+
+    @property
     def structure(self):
         return Structure(self._link['structure'].lstrip('structure.'),
                          self._nest_api, self._local_time)
@@ -359,6 +363,66 @@ class Device(NestBase):
     @name.setter
     def name(self, value):
         self._set('shared', {'name': value})
+
+    @property
+    def hvac_ac_state(self):
+        return self._shared['hvac_ac_state']
+
+    @property
+    def hvac_cool_x2_state(self):
+        return self._shared['hvac_cool_x2_state']
+
+    @property
+    def hvac_heater_state(self):
+        return self._shared['hvac_heater_state']
+
+    @property
+    def hvac_aux_heater_state(self):
+        return self._shared['hvac_aux_heater_state']
+
+    @property
+    def hvac_heat_x2_state(self):
+        return self._shared['hvac_heat_x2_state']
+
+    @property
+    def hvac_heat_x3_state(self):
+        return self._shared['hvac_heat_x3_state']
+
+    @property
+    def hvac_alt_heat_state(self):
+        return self._shared['hvac_alt_heat_state']
+
+    @property
+    def hvac_alt_heat_x2_state(self):
+        return self._shared['hvac_alt_heat_x2_state']
+
+    @property
+    def hvac_emer_heat_state(self):
+        return self._shared['hvac_emer_heat_state']
+
+    @property
+    def online(self):
+        return self._track['online']
+
+    @property
+    def local_ip(self):
+        return self._device['local_ip']
+
+    @property
+    def last_ip(self):
+        return self._track['last_ip']
+
+    @property
+    def last_connection(self):
+        return self._track['last_connection']
+
+    @property
+    def error_code(self):
+        return self._device['error_code']
+
+    @property
+    def battery_level(self):
+        return self._device['battery_level']
 
     @property
     def postal_code(self):
@@ -448,10 +512,46 @@ class Structure(NestBase):
         self._set_away(value)
 
     @property
+    def country_code(self):
+        return self._structure['country_code']
+
+    @property
     def devices(self):
         return [Device(devid.lstrip('device.'), self._nest_api,
                        self._local_time)
                 for devid in self._structure['devices']]
+
+    @property
+    def dr_reminder_enabled(self):
+        return self._structure['dr_reminder_enabled']
+
+    @property
+    def emergency_contact_description(self):
+        return self._structure['emergency_contact_description']
+
+    @property
+    def emergency_contact_type(self):
+        return self._structure['emergency_contact_type']
+
+    @property
+    def emergency_contact_phone(self):
+        return self._structure['emergency_contact_phone']
+
+    @property
+    def enhanced_auto_away_enabled(self):
+        return self._structure['topaz_enhanced_auto_away_enabled']
+
+    @property
+    def eta_preconditioning_active(self):
+        return self._structure['eta_preconditioning_active']
+
+    @property
+    def house_type(self):
+        return self._structure['house_type']
+
+    @property
+    def hvac_safety_shutoff_enabled(self):
+        return self._structure['hvac_safety_shutoff_enabled']
 
     @property
     def name(self):
@@ -462,16 +562,28 @@ class Structure(NestBase):
         self._set('structure', {'name': value})
 
     @property
-    def location(self):
-        return self._structure['location']
+    def num_thermostats(self):
+        return self._structure['num_thermostats']
 
     @property
-    def address(self):
-        return self._structure['street_address']
+    def measurement_scale(self):
+        return self._structure['measurement_scale']
 
     @property
     def postal_code(self):
         return self._structure['postal_code']
+
+    @property
+    def renovation_date(self):
+        return self._structure['renovation_date']
+
+    @property
+    def structure_area(self):
+        return self._structure['structure_area']
+
+    @property
+    def time_zone(self):
+        return self._structure['time_zone']
 
     @property
     def _wheres(self):
