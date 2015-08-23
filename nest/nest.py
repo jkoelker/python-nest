@@ -462,14 +462,6 @@ class Structure(NestBase):
         self._set('structure', {'name': value})
 
     @property
-    def location(self):
-        return self._structure['location']
-
-    @property
-    def address(self):
-        return self._structure['street_address']
-
-    @property
     def postal_code(self):
         return self._structure['postal_code']
 
