@@ -58,7 +58,6 @@ You can import the module as `nest`.
         print ' structure_area                 : %s' % structure.structure_area
 
     # Access advanced device properties:
-
         for device in structure.devices:
             print '        Device: %s' % device.name
             print '        Where: %s' % device.where
