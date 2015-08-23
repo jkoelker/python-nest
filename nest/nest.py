@@ -534,6 +534,10 @@ class Structure(NestBase):
         return self._structure['emergency_contact_type']
 
     @property
+    def emergency_contact_phone(self):
+        return self._structure['emergency_contact_phone']
+
+    @property
     def enhanced_auto_away_enabled(self):
         return self._structure['topaz_enhanced_auto_away_enabled']
 
