@@ -448,10 +448,42 @@ class Structure(NestBase):
         self._set_away(value)
 
     @property
+    def county_code(self):
+        return self._structure['country_code']
+
+    @property
     def devices(self):
         return [Device(devid.lstrip('device.'), self._nest_api,
                        self._local_time)
                 for devid in self._structure['devices']]
+
+    @property
+    def dr_reminder_enabled(self):
+        return self._structure['dr_reminder_enabled']
+
+    @property
+    def emergency_contact_description(self):
+        return self._structure['emergency_contact_description']
+
+    @property
+    def emergency_contact_type(self):
+        return self._structure['emergency_contact_type']
+
+    @property
+    def enhanced_auto_away_enabled(self):
+        return self._structure['topaz_enhanced_auto_away_enabled']
+
+    @property
+    def eta_preconditioning_active(self):
+        return self._structure['eta_preconditioning_active']
+
+    @property
+    def house_type(self):
+        return self._structure['house_type']
+
+    @property
+    def hvac_safety_shutoff_enabled(self):
+        return self._structure['hvac_safety_shutoff_enabled']
 
     @property
     def name(self):
@@ -462,8 +494,28 @@ class Structure(NestBase):
         self._set('structure', {'name': value})
 
     @property
+    def num_thermostats(self):
+        return self._structure['num_thermostats']
+
+    @property
+    def measurement_scale(self):
+        return self._structure['measurement_scale']
+
+    @property
     def postal_code(self):
         return self._structure['postal_code']
+
+    @property
+    def renovation_date(self):
+        return self._structure['renovation_date']
+
+    @property
+    def structure_area(self):
+        return self._structure['structure_area']
+
+    @property
+    def time_zone(self):
+        return self._structure['time_zone']
 
     @property
     def _wheres(self):
