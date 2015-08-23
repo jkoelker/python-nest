@@ -282,6 +282,10 @@ class Device(NestBase):
         return self._nest_api._status['link'][self._serial]
 
     @property
+    def _track(self):
+        return self._nest_api._status['track'][self._serial]
+
+    @property
     def structure(self):
         return Structure(self._link['structure'].lstrip('structure.'),
                          self._nest_api, self._local_time)
@@ -359,6 +363,66 @@ class Device(NestBase):
     @name.setter
     def name(self, value):
         self._set('shared', {'name': value})
+
+    @property
+    def hvac_ac_state(self):
+        return self._shared['hvac_ac_state']
+
+    @property
+    def hvac_cool_x2_state(self):
+        return self._shared['hvac_cool_x2_state']
+
+    @property
+    def hvac_heater_state(self):
+        return self._shared['hvac_heater_state']
+
+    @property
+    def hvac_aux_heater_state(self):
+        return self._shared['hvac_aux_heater_state']
+
+    @property
+    def hvac_heat_x2_state(self):
+        return self._shared['hvac_heat_x2_state']
+
+    @property
+    def hvac_heat_x3_state(self):
+        return self._shared['hvac_heat_x3_state']
+
+    @property
+    def hvac_alt_heat_state(self):
+        return self._shared['hvac_alt_heat_state']
+
+    @property
+    def hvac_alt_heat_x2_state(self):
+        return self._shared['hvac_alt_heat_x2_state']
+
+    @property
+    def hvac_emer_heat_state(self):
+        return self._shared['hvac_emer_heat_state']
+
+    @property
+    def online(self):
+        return self._track['online']
+
+    @property
+    def local_ip(self):
+        return self._device['local_ip']
+
+    @property
+    def last_ip(self):
+        return self._track['last_ip']
+
+    @property
+    def last_connection(self):
+        return self._track['last_connection']
+
+    @property
+    def error_code(self):
+        return self._device['error_code']
+
+    @property
+    def battery_level(self):
+        return self._device['battery_level']
 
     @property
     def postal_code(self):
