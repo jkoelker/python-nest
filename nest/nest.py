@@ -245,7 +245,7 @@ class NestBase(object):
         self._local_time = local_time
 
     def __repr__(self):
-        return '<%s: %s>' % (self.__class__.__name__, self.name)
+        return '<%s: %s>' % (self.__class__.__name__, self._repr_name)
 
     def _set(self, what, data):
         url = '%s/v2/put/%s.%s' % (self._nest_api.urls['transport_url'],
@@ -267,6 +267,10 @@ class NestBase(object):
     def name(self):
         return self._serial
 
+    @property
+    def _repr_name(self):
+        return self.name
+
 
 class Device(NestBase):
     @property
@@ -284,6 +288,13 @@ class Device(NestBase):
     @property
     def _track(self):
         return self._nest_api._status['track'][self._serial]
+
+    @property
+    def _repr_name(self):
+        if self.name:
+            return self.name
+
+        return self.where
 
     @property
     def structure(self):
