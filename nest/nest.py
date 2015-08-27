@@ -563,11 +563,11 @@ class Structure(NestBase):
 
     @property
     def location(self):
-        return self._structure['location']
+        return self._structure.get('location')
 
     @property
     def address(self):
-        return self._structure['street_address']
+        return self._structure.get('street_address')
 
     @property
     def num_thermostats(self):
