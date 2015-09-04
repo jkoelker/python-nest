@@ -298,7 +298,7 @@ class Device(NestBase):
 
     @property
     def structure(self):
-        return Structure(self._link['structure'].lstrip('structure.'),
+        return Structure(self._link['structure'].split('.')[-1],
                          self._nest_api, self._local_time)
 
     @property
