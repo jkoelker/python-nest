@@ -528,7 +528,7 @@ class Structure(NestBase):
 
     @property
     def devices(self):
-        return [Device(devid.lstrip('device.'), self._nest_api,
+        return [Device(devid.split('.')[-1], self._nest_api,
                        self._local_time)
                 for devid in self._structure['devices']]
 
@@ -734,7 +734,7 @@ class Nest(object):
 
     @property
     def devices(self):
-        return [Device(devid.lstrip('device.'), self, self._local_time)
+        return [Device(devid.split('.')[-1], self, self._local_time)
                 for devid in self._status['device']]
 
     @property
