@@ -514,10 +514,6 @@ class ProtectDevice(NestBase):
         return self._nest_api._status['topaz'][self._serial]
 
     @property
-    def _topaz(self):
-        return self._nest_api._status['topaz'][self._serial]
-
-    @property
     def _repr_name(self):
         if self.name:
             return self.name
