@@ -7,4 +7,18 @@ install:
 before_script:
   - "flake8 --show-source --builtins=_ nest"
 script:
-  - echo true
+  - python setup.py install
+  - python setup.py sdist
+deploy:
+  - provider: pypi
+    user: $pypi_test_user
+    password: $pypi_test_pass
+    server: $pypi_test
+    on:
+      branch: deploy-test
+  - provider: pypi
+    user: $pypi_user
+    password: $pypi_pass
+    server: $pypi
+    on:
+      branch: deploy
