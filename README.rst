@@ -91,7 +91,7 @@ You can import the module as `nest`.
     # The Nest object can also be used as a context manager
     with nest.Nest(username, password) as napi:
         for device in napi.devices:
-            device.temp = 23
+            device.temperature = 23
 
     # Weather data is also availible under structure or device
     # The api is the same from either
