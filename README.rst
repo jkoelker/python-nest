@@ -91,7 +91,7 @@ You can import the module as `nest`.
     # The Nest object can also be used as a context manager
     with nest.Nest(username, password) as napi:
         for device in napi.devices:
-            device.temp = 23
+            device.temperature = 23
 
     # Weather data is also availible under structure or device
     # The api is the same from either
@@ -136,7 +136,7 @@ You can import the module as `nest`.
     #       module is installed those timezone objects are used, else one is
     #       synthesized from the nest data
     napi = nest.Nest(username, password, local_time=True)
-    print napi.structures[0].weather.current.dateimte.tzinfo
+    print napi.structures[0].weather.current.datetime.tzinfo
 
 
 In the API all temperature values are in degrees celsius. Helper functions

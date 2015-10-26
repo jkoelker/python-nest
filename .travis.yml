@@ -1,4 +1,5 @@
 language: python
+sudo: false
 python:
   - "2.7"
   - "3.4"
@@ -16,9 +17,11 @@ deploy:
     server: $pypi_test
     on:
       branch: deploy-test
+      python: "3.4"
   - provider: pypi
     user: $pypi_user
     password: $pypi_pass
     server: $pypi
     on:
       branch: deploy
+      python: "3.4"
