@@ -136,7 +136,7 @@ You can import the module as `nest`.
     #       module is installed those timezone objects are used, else one is
     #       synthesized from the nest data
     napi = nest.Nest(username, password, local_time=True)
-    print napi.structures[0].weather.current.dateimte.tzinfo
+    print napi.structures[0].weather.current.datetime.tzinfo
 
 
 In the API all temperature values are in degrees celsius. Helper functions
