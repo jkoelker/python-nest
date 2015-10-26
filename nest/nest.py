@@ -31,6 +31,27 @@ AZIMUTH_MAP = {'N': 0.0, 'NNE': 22.5, 'NE': 45.0, 'ENE': 67.5, 'E': 90.0,
                'ESE': 112.5, 'SE': 135.0, 'SSE': 157.5, 'S': 180.0,
                'SSW': 202.5, 'SW': 225.0, 'WSW': 247.5, 'W': 270.0,
                'WNW': 292.5, 'NW': 315.0, 'NNW': 337.5}
+
+AZIMUTH_ALIASES = (('North', 'N'),
+                   ('North North East', 'NNE'),
+                   ('North East', 'NE'),
+                   ('North North East', 'NNE'),
+                   ('East', 'E'),
+                   ('East South East', 'ESE'),
+                   ('South East', 'SE'),
+                   ('South South East', 'SSE'),
+                   ('South', 'S'),
+                   ('South South West', 'SSW'),
+                   ('South West', 'SW'),
+                   ('West South West', 'WSW'),
+                   ('West', 'W'),
+                   ('West North West', 'WNW'),
+                   ('North West', 'NW'),
+                   ('North North West', 'NNW'))
+
+for (alias, key) in AZIMUTH_ALIASES:
+    AZIMUTH_MAP[alias] = AZIMUTH_MAP[key]
+
 FAN_MAP = {'auto on': 'auto',
            'on': 'on',
            'auto': 'auto',
@@ -176,9 +197,12 @@ class Forecast(object):
         self.condition = forecast.get('condition')
         self.humidity = forecast['humidity']
         self._icon = forecast.get('icon')
-        self._time = forecast.get('observation_time',
-                                  forecast.get('time',
-                                               forecast.get('date')))
+
+        fget = forecast.get
+        self._time = float(fget('observation_time',
+                                fget('time',
+                                     fget('date',
+                                          fget('observation_epoch')))))
 
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__,
