@@ -281,7 +281,8 @@ class NestBase(object):
 
     @property
     def _weather(self):
-        return self._nest_api._weather[self.postal_code]
+        merge_code = self.postal_code + ',' + self.country_code
+        return self._nest_api._weather[merge_code]
 
     @property
     def weather(self):
@@ -946,7 +947,7 @@ class WeatherCache(object):
         now = time.time()
 
         if not value or now - last_update > self._cache_ttl:
-            url = self._nest_api.urls['weather_url'] + postal_code
+            url = self._nest_api.urls['weather_url'] + postal_code 
             response = self._nest_api._session.get(url)
             response.raise_for_status()
             value = response.json()[postal_code]
