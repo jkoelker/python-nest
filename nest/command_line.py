@@ -121,9 +121,12 @@ def parse_args():
 def main():
     args = parse_args()
 
+    def _identity(x):
+        return x
+
     if args.celsius:
-        display_temp = lambda x: x
-        convert_temp = lambda x: x
+        display_temp = _identity
+        convert_temp = _identity
 
     else:
         display_temp = utils.c_to_f
