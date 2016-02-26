@@ -281,7 +281,8 @@ class NestBase(object):
 
     @property
     def _weather(self):
-        return self._nest_api._weather[self.postal_code]
+        merge_code = self.postal_code + ',' + self.country_code
+        return self._nest_api._weather[merge_code]
 
     @property
     def weather(self):
