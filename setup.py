@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 
 import io
 
@@ -11,7 +11,7 @@ from setuptools import setup
 #                Bumping Minor means API bugfix or new functionality.
 #                Bumping Micro means CLI change of any kind unless it is
 #                    significant enough to warrant a minor/major bump.
-version = '2.9.0'
+version = '2.9.1'
 
 
 setup(name='python-nest',
@@ -24,7 +24,8 @@ setup(name='python-nest',
       author_email='jason@koelker.net',
       url='https://github.com/jkoelker/python-nest/',
       packages=['nest'],
-      install_requires=['requests>=1.0.0'],
+      install_requires=['requests>=1.0.0',
+                        'six>=1.10.0'],
       entry_points={
           'console_scripts': ['nest=nest.command_line:main'],
       }
