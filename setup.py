@@ -24,7 +24,8 @@ setup(name='python-nest',
       author_email='jason@koelker.net',
       url='https://github.com/jkoelker/python-nest/',
       packages=['nest'],
-      install_requires=['requests>=1.0.0'],
+      install_requires=['requests>=1.0.0',
+	      		'six>=1.10.0'],
       entry_points={
           'console_scripts': ['nest=nest.command_line:main'],
       }
