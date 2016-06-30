@@ -8,13 +8,12 @@ nest.py -- a python interface to the Nest Thermostats
 from __future__ import print_function
 
 import argparse
-# use six for python2/python3 compatibility
-from six.moves import configparser
 import os
 import sys
 
 from . import nest
 from . import utils
+from . import helpers
 
 
 def parse_args():
@@ -28,15 +27,7 @@ def parse_args():
 
     args, remaining_argv = conf_parser.parse_known_args()
 
-    defaults = {'celsius': False}
-    config_file = os.path.expanduser(args.conf)
-    if os.path.exists(config_file):
-        config = configparser.SafeConfigParser()
-        config.read([config_file])
-        if config.has_section('nest'):
-            defaults.update(dict(config.items('nest')))
-        else:
-            defaults.update(dict(config.items('DEFAULT')))
+    defaults = helpers.get_config(config_path=args.conf)
 
     description = 'Command line interface to Nest™ Thermostats'
     parser = argparse.ArgumentParser(description=description,

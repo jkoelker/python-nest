@@ -5,4 +5,6 @@ from .nest import Nest
 from .utils import CELSIUS
 from .utils import FAHRENHEIT
 
-__all__ = ['CELSIUS', 'FAHRENHEIT', 'Nest']
+from .helpers import nest_login
+
+__all__ = ['CELSIUS', 'FAHRENHEIT', 'Nest', 'nest_login']

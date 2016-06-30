@@ -810,13 +810,13 @@ class Structure(NestBase):
     def devices(self):
         return [Device(devid.split('.')[-1], self._nest_api,
                        self._local_time)
-                for devid in self._structure['devices']]
+                for devid in self._structure.get('devices', [])]
 
     @property
     def protectdevices(self):
         return [ProtectDevice(topazid.split('.')[-1], self._nest_api,
                               self._local_time)
-                for topazid in self._nest_api._status['topaz']]
+                for topazid in self._nest_api._status.get('topaz', [])]
 
     @property
     def dr_reminder_enabled(self):
