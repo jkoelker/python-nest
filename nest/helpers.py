@@ -64,5 +64,3 @@ def nest_login(config_path=None, username=None, password=None, **kwargs):
     else:
         raise MissingCredentialsError(
             'The login credentials have not been provided.')
-
-
