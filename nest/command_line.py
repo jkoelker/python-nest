@@ -8,8 +8,6 @@ nest.py -- a python interface to the Nest Thermostats
 from __future__ import print_function
 
 import argparse
-# use six for python2/python3 compatibility
-from six.moves import configparser
 import os
 import sys
 
