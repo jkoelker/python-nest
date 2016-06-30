@@ -7,6 +7,7 @@ import os
 # use six for python2/python3 compatibility
 from six.moves import configparser
 
+
 def get_config(config_path=None, prog='nest'):
     if not config_path:
         config_path = os.path.sep.join(('~', '.config', prog, 'config'))
@@ -21,10 +22,9 @@ def get_config(config_path=None, prog='nest'):
 
     return defaults
 
+
 def get_auth_credentials(config_path=None):
     config = get_config(config_path)
     username = config.get('user')
     password = config.get('password')
     return username, password
-
-
