@@ -44,7 +44,8 @@ def nest_login(config_path=None, username=None, password=None, **kwargs):
     authentication credentials either provided as keyword arguments
     or read from the configuration file.
 
-    :param config_path: Path to the config file. The default is used if none is provided.
+    :param config_path: Path to the config file.
+        The default is used if none is provided.
         Optional if the the credentials are provided as arguments.
     :param username: Optional if the config file contains the username.
     :param password: Optional if the config file contains the password.
