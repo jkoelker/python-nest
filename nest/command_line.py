@@ -207,16 +207,16 @@ def main():
 
         elif cmd == 'mode':
             if args.cool:
-                device.mode('cool')
+                device.mode = 'cool'
 
             elif args.heat:
-                device.mode('heat')
+                device.mode = 'heat'
 
             elif args.range:
-                device.mode('range')
+                device.mode = 'range'
 
             elif args.off:
-                device.mode('off')
+                device.mode = 'off'
 
             print(device.mode)
 
