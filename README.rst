@@ -93,7 +93,7 @@ You can import the module as `nest`.
         for device in napi.devices:
             device.temperature = 23
 
-    # Weather data is also availible under structure or device
+    # Weather data is also available under structure or device
     # The api is the same from either
 
     structure = napi.structures[0]
