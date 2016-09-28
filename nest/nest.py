@@ -202,7 +202,8 @@ class Forecast(object):
         self._time = float(fget('observation_time',
                                 fget('time',
                                      fget('date',
-                                          fget('observation_epoch')))))
+                                          fget('observation_epoch',
+                                               time.time())))))
 
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__,
