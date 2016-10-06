@@ -561,6 +561,7 @@ class Device(NestBase):
     def hot_water_temperature(self):
         return self._device['hot_water_temperature']
 
+
 class ProtectDevice(NestBase):
     @property
     def _device(self):
