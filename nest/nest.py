@@ -532,8 +532,35 @@ class Device(NestBase):
             data['away_temperature_high_enabled'] = False
 
         self._set('device', data)
+		
+    @property
+    def can_heat(self):
+        return self._shared['can_heat']
+		
+    @property
+    def can_cool(self):
+        return self._shared['can_cool']
+		
+    @property
+    def has_humidifier(self):
+        return self._device['has_humidifier']
+		
+    @property
+    def has_dehumidifier(self):
+        return self._device['has_dehumidifier']
+		
+    @property
+    def has_fan(self):
+        return self._device['has_fan']
 
+    @property
+    def has_hot_water_control(self):
+        return self._device['has_hot_water_control']
 
+    @property
+    def hot_water_temperature(self):
+        return self._device['hot_water_temperature']
+		
 class ProtectDevice(NestBase):
     @property
     def _device(self):
