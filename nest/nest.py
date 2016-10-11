@@ -561,6 +561,25 @@ class Device(NestBase):
     def hot_water_temperature(self):
         return self._device['hot_water_temperature']
 
+    ''' Create schedule atttibute
+        Creates a list of setpoint lists.  Setpoint lists formatted as [weekday, setpoint_num, time(seconds), temp(C), type]
+    '''
+    @property
+    def schedule(self):
+        dev_sched = self._nest_api._cache[0]['schedule'][self._device['serial_number']]
+        schedule = []
+        setpoint = []
+        for day in dev_sched['days']:
+            for n in range(10):
+                try:
+                    if dev_sched['days'][str(day)][str(n)]['entry_type'] == 'setpoint':
+                        setpoint = [int(day), n, dev_sched['days'][str(day)][str(n)]['time'], dev_sched['days'][str(day)][str(n)]['temp'], dev_sched['days'][str(day)][str(n)]['type']]
+                        schedule.append(setpoint)
+                        setpoint = []
+                except:
+                    pass
+                
+        return schedule   
 
 class ProtectDevice(NestBase):
     @property
