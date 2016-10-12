@@ -584,7 +584,7 @@ class Device(NestBase):
     @property
     def hot_water_boost_time_to_end(self):
         return self._device['hot_water_boost_time_to_end']
-        
+
 
 class ProtectDevice(NestBase):
     @property
