@@ -570,13 +570,21 @@ class Device(NestBase):
         return self._device['hot_water_active']
 
     @property
+    def hot_water_away_enabled(self):
+        return self._device['hot_water_away_enabled']
+
+    @property
     def hot_water_away_active(self):
         return self._device['hot_water_away_active']
 
     @property
+    def hot_water_next_transition_time(self):
+        return self._device['hot_water_next_transition_time']
+
+    @property
     def hot_water_boost_time_to_end(self):
         return self._device['hot_water_boost_time_to_end']
-
+        
 
 class ProtectDevice(NestBase):
     @property
