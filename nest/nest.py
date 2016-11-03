@@ -52,6 +52,8 @@ AZIMUTH_ALIASES = (('North', 'N'),
 for (alias, key) in AZIMUTH_ALIASES:
     AZIMUTH_MAP[alias] = AZIMUTH_MAP[key]
 
+ECO_MAP = {''}
+
 FAN_MAP = {'auto on': 'auto',
            'on': 'on',
            'auto': 'auto',
@@ -561,6 +563,22 @@ class Device(NestBase):
     def hot_water_temperature(self):
         return self._device['hot_water_temperature']
 
+    @property
+    def eco(self):
+        eco_mode = self._device['eco']['mode']
+        # eco modes can be auto-eco or manual-eco
+        return eco_mode.endswith('eco')
+
+    @eco.setter
+    def eco(self, value):
+        data = {'eco': self._device['eco']}
+        if value == True:
+            data['eco']['mode'] = 'manual-eco'
+        else:
+            data['eco']['mode'] = 'schedule'
+        data['eco']['mode_update_timestamp'] = time.time()
+        self._set('device', data)
+
 
 class ProtectDevice(NestBase):
     @property
@@ -822,7 +840,6 @@ class Structure(NestBase):
         self._set('structure', {'away': AWAY_MAP[value],
                                 'away_timestamp': int(time.time()),
                                 'away_setter': int(auto_away)})
-
     @property
     def away(self):
         return self._structure['away']
