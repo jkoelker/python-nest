@@ -52,8 +52,6 @@ AZIMUTH_ALIASES = (('North', 'N'),
 for (alias, key) in AZIMUTH_ALIASES:
     AZIMUTH_MAP[alias] = AZIMUTH_MAP[key]
 
-ECO_MAP = {''}
-
 FAN_MAP = {'auto on': 'auto',
            'on': 'on',
            'auto': 'auto',
