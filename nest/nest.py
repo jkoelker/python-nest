@@ -570,7 +570,7 @@ class Device(NestBase):
     @eco.setter
     def eco(self, value):
         data = {'eco': self._device['eco']}
-        if value == True:
+        if value:
             data['eco']['mode'] = 'manual-eco'
         else:
             data['eco']['mode'] = 'schedule'
@@ -838,6 +838,7 @@ class Structure(NestBase):
         self._set('structure', {'away': AWAY_MAP[value],
                                 'away_timestamp': int(time.time()),
                                 'away_setter': int(auto_away)})
+
     @property
     def away(self):
         return self._structure['away']
