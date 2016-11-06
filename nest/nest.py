@@ -310,7 +310,7 @@ class NestBase(object):
 class Device(NestBase):
     @property
     def _device(self):
-        return self._nest_api._status['devices']['thermostats'][self._serial]
+        return self._nest_api._status['devices'][THERMOSTATS][self._serial]
 
     @property
     def _shared(self):
@@ -842,7 +842,12 @@ class ProtectDevice(NestBase):
 class CameraDevice(NestBase):
     @property
     def _device(self):
-        return self._nest_api._status['quartz'][self._serial]
+        # FIXME seems like some of this logic could push up to nest_api
+        return self._nest_api._status['devices'][CAMERAS][self._serial]
+
+    @property
+    def name(self):
+        return self._device['name']
 
     @property
     def _repr_name(self):
@@ -855,6 +860,14 @@ class CameraDevice(NestBase):
     def structure(self):
         return Structure(self._device['structure_id'],
                          self._nest_api, self._local_time)
+
+    @property
+    def is_online(self):
+        return self._device['is_online']
+
+    @property
+    def is_video_history_enabled(self):
+        return self._device['is_video_history_enabled']
 
     @property
     def where(self):
@@ -1088,7 +1101,7 @@ class CameraDevice(NestBase):
 
     @property
     def snapshot_url(self):
-        return self._device['snapshot_url']['snapshot_url_prefix'] + self._device['snapshot_url']['snapshot_url_suffix'] + "/" + self.serial + "?auth=" + self._nest_api._session.auth.access_token
+        return self._device['snapshot_url']
 
 
 class Structure(NestBase):
@@ -1123,13 +1136,13 @@ class Structure(NestBase):
     def protectdevices(self):
         return [ProtectDevice(topazid.split('.')[-1], self._nest_api,
                               self._local_time)
-                for topazid in self._nest_api._structure[SMOKE_CO_ALARMS]]
+                for topazid in self._structure[SMOKE_CO_ALARMS]]
 
     @property
     def cameradevices(self):
         return [CameraDevice(devid.split('.')[-1], self._nest_api,
                               self._local_time)
-                for devid in self._nest_api._structure[CAMERAS]]
+                for devid in self._structure[CAMERAS]]
 
     @property
     def dr_reminder_enabled(self):
@@ -1297,7 +1310,9 @@ class Nest(object):
             initial_response = requests.get(API_URL, headers=headers, allow_redirects=False)
             if initial_response.status_code != 307:
                 initial_response.raise_for_status()
-            response = requests.get(initial_response.headers['Location'], headers=headers, allow_redirects=False)
+            redirect_url = initial_response.headers['Location']
+            # FIXME sometimes this header is empty :-/ maybe because 200 doesn't raise for raise_for_status?
+            response = requests.get(redirect_url, headers=headers, allow_redirects=False)
             response.raise_for_status()
             value = response.json()
             self._cache = (value, now)
