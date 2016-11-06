@@ -1128,21 +1128,30 @@ class Structure(NestBase):
 
     @property
     def devices(self):
-        return [Device(devid.split('.')[-1], self._nest_api,
-                       self._local_time)
-                for devid in self._structure[THERMOSTATS]]
+        if THERMOSTATS in self._structure:
+            return [Device(devid.split('.')[-1], self._nest_api,
+                           self._local_time)
+                    for devid in self._structure[THERMOSTATS]]
+        else:
+            return []
 
     @property
     def protectdevices(self):
-        return [ProtectDevice(topazid.split('.')[-1], self._nest_api,
-                              self._local_time)
-                for topazid in self._structure[SMOKE_CO_ALARMS]]
+        if SMOKE_CO_ALARMS in self._structure:
+            return [ProtectDevice(topazid.split('.')[-1], self._nest_api,
+                                  self._local_time)
+                    for topazid in self._structure[SMOKE_CO_ALARMS]]
+        else:
+            return []
 
     @property
     def cameradevices(self):
-        return [CameraDevice(devid.split('.')[-1], self._nest_api,
-                              self._local_time)
-                for devid in self._structure[CAMERAS]]
+        if CAMERAS in self._structure:
+            return [CameraDevice(devid.split('.')[-1], self._nest_api,
+                                  self._local_time)
+                    for devid in self._structure[CAMERAS]]
+        else:
+            return []
 
     @property
     def dr_reminder_enabled(self):
