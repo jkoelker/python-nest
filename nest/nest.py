@@ -19,8 +19,10 @@ try:
 except ImportError:
     pytz = None
 
-
+AUTHORIZE_URL = 'https://home.nest.com/login/oauth2?client_id={0}&state={1}'
+API_URL = 'https://developer-api.nest.com'
 LOGIN_URL = 'https://home.nest.com/user/login'
+
 AWAY_MAP = {'on': True,
             'away': True,
             'off': False,
@@ -66,6 +68,10 @@ FAN_MAP = {'auto on': 'auto',
 
 LowHighTuple = collections.namedtuple('LowHighTuple', ('low', 'high'))
 
+STRUCTURES = 'structures'
+THERMOSTATS = 'thermostats'
+SMOKE_CO_ALARMS = 'smoke_co_alarms'
+CAMERAS = 'cameras'
 
 class NestTZ(datetime.tzinfo):
     def __init__(self, gmt_offset):
@@ -304,15 +310,11 @@ class NestBase(object):
 class Device(NestBase):
     @property
     def _device(self):
-        return self._nest_api._status['device'][self._serial]
+        return self._nest_api._status['devices']['thermostats'][self._serial]
 
     @property
     def _shared(self):
         return self._nest_api._status['shared'][self._serial]
-
-    @property
-    def _link(self):
-        return self._nest_api._status['link'][self._serial]
 
     @property
     def _track(self):
@@ -327,13 +329,14 @@ class Device(NestBase):
 
     @property
     def structure(self):
-        return Structure(self._link['structure'].split('.')[-1],
+        return Structure(self._device['structure_id'],
                          self._nest_api, self._local_time)
 
+    # FIXME duplication with protect & camera where
     @property
     def where(self):
         if 'where_id' in self._device:
-            return self.structure.wheres[self._device['where_id']]
+            return self.structure.wheres[self._device['where_id']]['name']
 
     @where.setter
     def where(self, value):
@@ -348,7 +351,7 @@ class Device(NestBase):
 
     @property
     def fan(self):
-        return self._shared['hvac_fan_state']
+        return self._device['fan_timer_active'] # FIXME confirm this is the same as old havac_fan_state
 
     @fan.setter
     def fan(self, value):
@@ -356,41 +359,41 @@ class Device(NestBase):
 
     @property
     def humidity(self):
-        return self._device['current_humidity']
+        return self._device['humidity']
 
-    @property
-    def target_humidity(self):
-        return self._device['target_humidity']
+    #@property
+    #def target_humidity(self):
+    #    return self._device['target_humidity']
 
-    @target_humidity.setter
-    def target_humidity(self, value):
-        if value == 'auto':
+    #@target_humidity.setter
+    #def target_humidity(self, value):
+    #    if value == 'auto':
 
-            if self._weather['current']['temp_c'] >= 4.44:
-                hum_value = 45
-            elif self._weather['current']['temp_c'] >= -1.11:
-                hum_value = 40
-            elif self._weather['current']['temp_c'] >= -6.67:
-                hum_value = 35
-            elif self._weather['current']['temp_c'] >= -12.22:
-                hum_value = 30
-            elif self._weather['current']['temp_c'] >= -17.78:
-                hum_value = 25
-            elif self._weather['current']['temp_c'] >= -23.33:
-                hum_value = 20
-            elif self._weather['current']['temp_c'] >= -28.89:
-                hum_value = 15
-            elif self._weather['current']['temp_c'] >= -34.44:
-                hum_value = 10
-        else:
-            hum_value = value
+    #        if self._weather['current']['temp_c'] >= 4.44:
+    #            hum_value = 45
+    #        elif self._weather['current']['temp_c'] >= -1.11:
+    #            hum_value = 40
+    #        elif self._weather['current']['temp_c'] >= -6.67:
+    #            hum_value = 35
+    #        elif self._weather['current']['temp_c'] >= -12.22:
+    #            hum_value = 30
+    #        elif self._weather['current']['temp_c'] >= -17.78:
+    #            hum_value = 25
+    #        elif self._weather['current']['temp_c'] >= -23.33:
+    #            hum_value = 20
+    #        elif self._weather['current']['temp_c'] >= -28.89:
+    #            hum_value = 15
+    #        elif self._weather['current']['temp_c'] >= -34.44:
+    #            hum_value = 10
+    #    else:
+    #        hum_value = value
 
-        if float(hum_value) != self._device['target_humidity']:
-            self._set('device', {'target_humidity': float(hum_value)})
+    #    if float(hum_value) != self._device['target_humidity']:
+    #        self._set('device', {'target_humidity': float(hum_value)})
 
     @property
     def mode(self):
-        return self._shared['target_temperature_type']
+        return self._device['hvac_mode'] # FIXME confirm same as target_temperature_type
 
     @mode.setter
     def mode(self, value):
@@ -398,7 +401,7 @@ class Device(NestBase):
 
     @property
     def name(self):
-        return self._shared['name']
+        return self._device['name']
 
     @name.setter
     def name(self, value):
@@ -406,7 +409,7 @@ class Device(NestBase):
 
     @property
     def hvac_ac_state(self):
-        return self._shared['hvac_ac_state']
+        return self._shared['hvac_ac_state'] 
 
     @property
     def hvac_cool_x2_state(self):
@@ -469,8 +472,17 @@ class Device(NestBase):
         return self._device['postal_code']
 
     @property
+    def temperature_scale(self):
+        return self._device['temperature_scale']
+
+    @property
     def temperature(self):
-        return self._shared['current_temperature']
+        
+        if self.temperature_scale == 'C':
+            temperature_key = 'ambient_temperature_c'
+        else:
+            temperature_key = 'ambient_temperature_f'
+        return self._device[temperature_key]
 
     @temperature.setter
     def temperature(self, value):
@@ -478,12 +490,23 @@ class Device(NestBase):
 
     @property
     def target(self):
-        if self._shared['target_temperature_type'] == 'range':
-            low = self._shared['target_temperature_low']
-            high = self._shared['target_temperature_high']
+        if self.mode == 'heat-cool':
+            if self.temperature_scale == 'C':
+                target_low_temperature_key = 'target_temperature_low_c'
+                target_high_temperature_key = 'target_temperature_high_c'
+            else:
+                target_low_temperature_key = 'target_temperature_low_f'
+                target_high_temperature_key = 'target_temperature_high_f'
+            low = self._device[target_low_temperature_key]
+            high = self._device[target_high_temperature_key]
             return LowHighTuple(low, high)
 
-        return self._shared['target_temperature']
+        if self.temperature_scale == 'C':
+            target_temperature_key = 'target_temperature_c'
+        else:
+            target_temperature_key = 'target_temperature_f'
+
+        return self._device[target_temperature_key]
 
     @target.setter
     def target(self, value):
@@ -503,11 +526,15 @@ class Device(NestBase):
         low = None
         high = None
 
-        if self._device['away_temperature_low_enabled']:
-            low = self._device['away_temperature_low']
+        if self.temperature_scale == 'C':
+            away_temperature_low_key = 'away_temperature_low_c'
+            away_temperature_high_key = 'away_temperature_high_c'
+        else:
+            away_temperature_low_key = 'away_temperature_low_f'
+            away_temperature_high_key = 'away_temperature_high_f'
 
-        if self._device['away_temperature_high_enabled']:
-            high = self._device['away_temperature_high']
+        low = self._device[away_temperature_low_key]
+        high = self._device[away_temperature_high_key]
 
         return LowHighTuple(low, high)
 
@@ -534,11 +561,11 @@ class Device(NestBase):
 
     @property
     def can_heat(self):
-        return self._shared['can_heat']
+        return self._device['can_heat']
 
     @property
     def can_cool(self):
-        return self._shared['can_cool']
+        return self._device['can_cool']
 
     @property
     def has_humidifier(self):
@@ -581,7 +608,7 @@ class ProtectDevice(NestBase):
     @property
     def where(self):
         if 'where_id' in self._device:
-            return self.structure.wheres[self._device['where_id']]
+            return self.structure.wheres[self._device['where_id']]['name']
 
     @property
     def auto_away(self):
@@ -832,7 +859,7 @@ class CameraDevice(NestBase):
     @property
     def where(self):
         if 'where_id' in self._device:
-            return self.structure.wheres[self._device['where_id']]
+            return self.structure.wheres[self._device['where_id']]['name']
 
     @property
     def is_audio_enabled(self):
@@ -1059,11 +1086,15 @@ class CameraDevice(NestBase):
     def wired_or_battery(self):
         return self._device['wired_or_battery']
 
+    @property
+    def snapshot_url(self):
+        return self._device['snapshot_url']['snapshot_url_prefix'] + self._device['snapshot_url']['snapshot_url_suffix'] + "/" + self.serial + "?auth=" + self._nest_api._session.auth.access_token
+
 
 class Structure(NestBase):
     @property
     def _structure(self):
-        return self._nest_api._status['structure'][self._serial]
+        return self._nest_api._status[STRUCTURES][self._serial]
 
     def _set_away(self, value, auto_away=False):
         self._set('structure', {'away': AWAY_MAP[value],
@@ -1086,19 +1117,19 @@ class Structure(NestBase):
     def devices(self):
         return [Device(devid.split('.')[-1], self._nest_api,
                        self._local_time)
-                for devid in self._structure['devices']]
+                for devid in self._structure[THERMOSTATS]]
 
     @property
     def protectdevices(self):
         return [ProtectDevice(topazid.split('.')[-1], self._nest_api,
                               self._local_time)
-                for topazid in self._nest_api._status['topaz']]
+                for topazid in self._nest_api._structure[SMOKE_CO_ALARMS]]
 
     @property
     def cameradevices(self):
         return [CameraDevice(devid.split('.')[-1], self._nest_api,
                               self._local_time)
-                for devid in self._nest_api._status['quartz']]
+                for devid in self._nest_api._structure[CAMERAS]]
 
     @property
     def dr_reminder_enabled(self):
@@ -1153,10 +1184,6 @@ class Structure(NestBase):
         return self._structure['num_thermostats']
 
     @property
-    def measurement_scale(self):
-        return self._structure['measurement_scale']
-
-    @property
     def postal_code(self):
         return self._structure['postal_code']
 
@@ -1173,14 +1200,8 @@ class Structure(NestBase):
         return self._structure['time_zone']
 
     @property
-    def _wheres(self):
-        return self._nest_api._status['where'][self._serial]['wheres']
-
-    @property
     def wheres(self):
-        ret = {w['name'].lower(): w['where_id'] for w in self._wheres}
-        ret.update({v: k for k, v in ret.items()})
-        return ret
+        return self._structure['wheres']
 
     @wheres.setter
     def wheres(self, value):
@@ -1239,7 +1260,7 @@ class WeatherCache(object):
 
 
 class Nest(object):
-    def __init__(self, username, password, cache_ttl=270,
+    def __init__(self, username=None, password=None, cache_ttl=270,
                  user_agent='Nest/1.1.0.10 CFNetwork/548.0.4',
                  access_token=None, access_token_cache_file=None,
                  local_time=False):
@@ -1255,27 +1276,10 @@ class Nest(object):
         self._cache = (None, 0)
         self._weather = WeatherCache(self)
         self._local_time = local_time
+        self._access_token = access_token
 
-        def auth_callback(result):
-            self._urls = result['urls']
-            self._limits = result['limits']
-            self._user = result['user']
-            self._userid = result['userid']
-            self._weave = result['weave']
-            self._staff = result['is_staff']
-            self._superuser = result['is_superuser']
-            self._email = result['email']
+        # TODO add auth to help get an access token
 
-        self._user_agent = user_agent
-        self._session = requests.Session()
-        auth = NestAuth(username, password, auth_callback=auth_callback,
-                        session=self._session, access_token=access_token,
-                        access_token_cache_file=access_token_cache_file)
-        self._session.auth = auth
-
-        headers = {'user-agent': 'Nest/1.1.0.10 CFNetwork/548.0.4',
-                   'X-nl-protocol-version': '1'}
-        self._session.headers.update(headers)
 
     def __enter__(self):
         return self
@@ -1289,8 +1293,11 @@ class Nest(object):
         now = time.time()
 
         if not value or now - last_update > self._cache_ttl:
-            url = self.urls['transport_url'] + '/v2/mobile/' + self.user
-            response = self._session.get(url)
+            headers = {'Authorization': 'Bearer ' + self._access_token, 'Content-Type': 'application/json'}
+            initial_response = requests.get(API_URL, headers=headers, allow_redirects=False)
+            if initial_response.status_code != 307:
+                initial_response.raise_for_status()
+            response = requests.get(initial_response.headers['Location'], headers=headers, allow_redirects=False)
             response.raise_for_status()
             value = response.json()
             self._cache = (value, now)
@@ -1303,22 +1310,22 @@ class Nest(object):
     @property
     def devices(self):
         return [Device(devid.split('.')[-1], self, self._local_time)
-                for devid in self._status['device']]
+                for devid in self._status['devices']['thermostats']]
 
     @property
     def protectdevices(self):
         return [ProtectDevice(topazid.split('.')[-1], self, self._local_time)
-                for topazid in self._status['topaz']]\
+                for topazid in self._status['devices']['smoke_co_alarms']]\
 
     @property
     def cameradevices(self):
         return [CameraDevice(topazid.split('.')[-1], self, self._local_time)
-                for topazid in self._status['quartz']]
+                for topazid in self._status['devices']['cameras']]
 
     @property
     def structures(self):
         return [Structure(stid, self, self._local_time)
-                for stid in self._status['structure']]
+                for stid in self._status[STRUCTURES]]
 
     @property
     def urls(self):
