@@ -372,12 +372,14 @@ class Device(NestBase):
     def humidity(self):
         return self._device['humidity']
 
-    #@property
-    #def target_humidity(self):
-    #    return self._device['target_humidity']
+    @property
+    def target_humidity(self):
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['target_humidity']
 
-    #@target_humidity.setter
-    #def target_humidity(self, value):
+    @target_humidity.setter
+    def target_humidity(self, value):
+        raise NotImplementedError("No longer available in Nest API")
     #    if value == 'auto':
 
     #        if self._weather['current']['temp_c'] >= 4.44:
