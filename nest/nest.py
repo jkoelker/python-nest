@@ -926,6 +926,10 @@ class CameraDevice(NestBase):
         return self._device['is_online']
 
     @property
+    def is_streaming(self):
+        return self._device['is_streaming']
+
+    @property
     def is_video_history_enabled(self):
         return self._device['is_video_history_enabled']
 
