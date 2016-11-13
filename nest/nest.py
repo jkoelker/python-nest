@@ -279,9 +279,15 @@ class NestBase(object):
         return '<%s: %s>' % (self.__class__.__name__, self._repr_name)
 
     def _set(self, what, data):
-        url = '%s/v2/put/%s.%s' % (self._nest_api.urls['transport_url'],
-                                   what, self._serial)
-        response = self._nest_api._session.post(url, data=json.dumps(data))
+        url = '%s/%s/%s' % (API_URL, what, self._serial)
+        headers = {'Authorization': 'Bearer ' + self._access_token, 'Content-Type': 'application/json'}
+
+        json_data = json.dumps(data)
+        initial_response = requests.put(url, headers=headers, allow_redirects=False, data=json_data)
+        if initial_response.status_code != 307:
+            initial_response.raise_for_status()
+        redirect_url = initial_response.headers['Location']
+        response = requests.put(redirect_url, headers=headers, data=json_data)
         response.raise_for_status()
 
         self._nest_api._bust_cache()
@@ -402,7 +408,7 @@ class Device(NestBase):
 
     @mode.setter
     def mode(self, value):
-        self._set('shared', {'target_temperature_type': value.lower()})
+        self._set('devices/thermostat', {'hvac_mode': value.lower()})
 
     @property
     def name(self):
