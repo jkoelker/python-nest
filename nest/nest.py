@@ -279,18 +279,12 @@ class NestBase(object):
         return '<%s: %s>' % (self.__class__.__name__, self._repr_name)
 
     def _set(self, what, data):
-        url = '%s/%s/%s' % (API_URL, what, self._serial)
-        headers = {'Authorization': 'Bearer ' + self._access_token, 'Content-Type': 'application/json'}
+        path = '/%s/%s' % (what, self._serial)
 
-        json_data = json.dumps(data)
-        initial_response = requests.put(url, headers=headers, allow_redirects=False, data=json_data)
-        if initial_response.status_code != 307:
-            initial_response.raise_for_status()
-        redirect_url = initial_response.headers['Location']
-        response = requests.put(redirect_url, headers=headers, data=json_data)
-        response.raise_for_status()
-
+        response = self._nest_api._put(path=path, data=data)
         self._nest_api._bust_cache()
+
+        return response
 
     @property
     def _weather(self):
@@ -410,7 +404,7 @@ class Device(NestBase):
 
     @mode.setter
     def mode(self, value):
-        self._set('devices/thermostat', {'hvac_mode': value.lower()})
+        self._set('devices/thermostats', {'hvac_mode': value.lower()})
 
     @property
     def name(self):
@@ -1371,9 +1365,35 @@ class Nest(object):
         self._weather = WeatherCache(self)
         self._local_time = local_time
         self._access_token = access_token
+        self._headers = {'Authorization': 'Bearer ' + self._access_token, 'Content-Type': 'application/json'}
 
         # TODO add auth to help get an access token
 
+    def _request(self, verb, path = "/", data=None):
+        url = "%s%s" % (API_URL, path)
+
+        if data is not None:
+            data = json.dumps(data)
+
+        initial_response = requests.request(verb, url, headers=self._headers, allow_redirects=False, data=data)
+        if initial_response.status_code != 307:
+            error_message = "Expect status code 307, but got %i\n%s" % (initial_response.status_code, response.content)
+            print(error_message)
+            raise RuntimeError(error_message)
+
+        redirect_url = initial_response.headers['Location']
+        response = requests.request(verb, redirect_url, headers=self._headers, allow_redirects=False, data=data)
+        # TODO check for 429 status code for too frequent access. see https://developers.nest.com/documentation/cloud/data-rate-limits
+        # TODO check for 400, and check error code, ie if you don't have access to do a thing. See https://developers.nest.com/documentation/cloud/error-messages
+        response.raise_for_status()
+
+        return response.json()
+
+    def _get(self, path = "/"):
+        return self._request('GET', path)
+
+    def _put(self, path = "/", data=None):
+        return self._request('PUT', path, data=data)
 
     def __enter__(self):
         return self
@@ -1387,15 +1407,7 @@ class Nest(object):
         now = time.time()
 
         if not value or now - last_update > self._cache_ttl:
-            headers = {'Authorization': 'Bearer ' + self._access_token, 'Content-Type': 'application/json'}
-            initial_response = requests.get(API_URL, headers=headers, allow_redirects=False)
-            if initial_response.status_code != 307:
-                initial_response.raise_for_status()
-            redirect_url = initial_response.headers['Location']
-            # FIXME sometimes this header is empty :-/ maybe because 200 doesn't raise for raise_for_status?
-            response = requests.get(redirect_url, headers=headers, allow_redirects=False)
-            response.raise_for_status()
-            value = response.json()
+            value = self._get("/")
             self._cache = (value, now)
 
         return value
