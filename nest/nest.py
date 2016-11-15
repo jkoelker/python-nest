@@ -1385,13 +1385,16 @@ class Nest(object):
         if data is not None:
             data = json.dumps(data)
 
-        initial_response = requests.request(verb, url, headers=self._headers, allow_redirects=False, data=data)
-        if initial_response.status_code != 307:
-            error_message = "Expect status code 307, but got %i\n%s" % (initial_response.status_code, response.content)
+        response = requests.request(verb, url, headers=self._headers, allow_redirects=False, data=data)
+        if response.status_code == 200:
+            return response.json()
+
+        if response.status_code != 307:
+            error_message = "Expect status code 307, but got %i\n%s" % (response.status_code, response.content)
             print(error_message)
             raise RuntimeError(error_message)
 
-        redirect_url = initial_response.headers['Location']
+        redirect_url = response.headers['Location']
         response = requests.request(verb, redirect_url, headers=self._headers, allow_redirects=False, data=data)
         # TODO check for 429 status code for too frequent access. see https://developers.nest.com/documentation/cloud/data-rate-limits
         # TODO check for 400, and check error code, ie if you don't have access to do a thing. See https://developers.nest.com/documentation/cloud/error-messages
