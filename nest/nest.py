@@ -554,41 +554,51 @@ class Device(NestBase):
 
     @property
     def away_temperature(self):
+        # see https://nestdevelopers.io/t/new-things-for-fall/226
+        raise NotImplementedError("Deprecated Nest API, use eco_temperature instead")
+
+    @away_temperature.setter
+    def away_temperature(self, value):
+        # see https://nestdevelopers.io/t/new-things-for-fall/226
+        raise NotImplementedError("Deprecated Nest API, use eco_temperature instead")
+
+    @property
+    def eco_temperature(self):
         low = None
         high = None
 
         if self.temperature_scale == 'C':
-            away_temperature_low_key = 'away_temperature_low_c'
-            away_temperature_high_key = 'away_temperature_high_c'
+            eco_temperature_low_key = 'eco_temperature_low_c'
+            eco_temperature_high_key = 'eco_temperature_high_c'
         else:
-            away_temperature_low_key = 'away_temperature_low_f'
-            away_temperature_high_key = 'away_temperature_high_f'
+            eco_temperature_low_key = 'eco_temperature_low_f'
+            eco_temperature_high_key = 'eco_temperature_high_f'
 
-        low = self._device[away_temperature_low_key]
-        high = self._device[away_temperature_high_key]
+        low = self._device[eco_temperature_low_key]
+        high = self._device[eco_temperature_high_key]
 
         return LowHighTuple(low, high)
 
-    @away_temperature.setter
-    def away_temperature(self, value):
+    @eco_temperature.setter
+    def eco_temperature(self, value):
         low, high = value
 
         data = {}
-        if low is not None:
-            data['away_temperature_low'] = low
-            data['away_temperature_low_enabled'] = True
-
+        if self.temperature_scale == 'C':
+            eco_temperature_low_key = 'eco_temperature_low_c'
+            eco_temperature_high_key = 'eco_temperature_high_c'
         else:
-            data['away_temperature_low_enabled'] = False
+            eco_temperature_low_key = 'eco_temperature_low_f'
+            eco_temperature_high_key = 'eco_temperature_high_f'
+
+        if low is not None:
+            data[eco_temperature_low_key] = low
 
         if high is not None:
-            data['away_temperature_high'] = high
-            data['away_temperature_high_enabled'] = True
+            data[eco_temperature_high_key] = high
 
-        else:
-            data['away_temperature_high_enabled'] = False
 
-        self._set('device', data)
+        self._set('devices/thermostats', data)
 
     @property
     def can_heat(self):
@@ -643,7 +653,7 @@ class ProtectDevice(NestBase):
 
     @property
     def auto_away(self):
-        raise NotImplementedError("No longer available in Nest API")
+        raise NotImplementedError("No longer available in Nest API.")
         #return self._device['auto_away']
 
     @property
