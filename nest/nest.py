@@ -74,6 +74,15 @@ THERMOSTATS = 'thermostats'
 SMOKE_CO_ALARMS = 'smoke_co_alarms'
 CAMERAS = 'cameras'
 
+class APIError(Exception):
+    def __init__(self, response):
+        message = response.json()['error']
+        # Call the base class constructor with the parameters it needs
+        super(APIError, self).__init__(message)
+
+        self.response = response
+    pass
+
 class NestTZ(datetime.tzinfo):
     def __init__(self, gmt_offset):
         self._offset = datetime.timedelta(hours=float(gmt_offset))
@@ -1390,15 +1399,13 @@ class Nest(object):
             return response.json()
 
         if response.status_code != 307:
-            error_message = "Expect status code 307, but got %i\n%s" % (response.status_code, response.content)
-            print(error_message)
-            raise RuntimeError(error_message)
+            raise APIError(response)
 
         redirect_url = response.headers['Location']
         response = requests.request(verb, redirect_url, headers=self._headers, allow_redirects=False, data=data)
         # TODO check for 429 status code for too frequent access. see https://developers.nest.com/documentation/cloud/data-rate-limits
-        # TODO check for 400, and check error code, ie if you don't have access to do a thing. See https://developers.nest.com/documentation/cloud/error-messages
-        response.raise_for_status()
+        if 400 <= response.status_code < 600:
+            raise APIError(response)
 
         return response.json()
 
