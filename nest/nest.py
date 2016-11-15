@@ -23,12 +23,12 @@ AUTHORIZE_URL = 'https://home.nest.com/login/oauth2?client_id={0}&state={1}'
 API_URL = 'https://developer-api.nest.com'
 LOGIN_URL = 'https://home.nest.com/user/login'
 
-AWAY_MAP = {'on': True,
-            'away': True,
-            'off': False,
-            'home': False,
-            True: True,
-            False: False}
+AWAY_MAP = {'on': 'away',
+            'away': 'away',
+            'off': 'home',
+            'home': 'home',
+            True: 'away',
+            False: 'home'}
 AZIMUTH_MAP = {'N': 0.0, 'NNE': 22.5, 'NE': 45.0, 'ENE': 67.5, 'E': 90.0,
                'ESE': 112.5, 'SE': 135.0, 'SSE': 157.5, 'S': 180.0,
                'SSW': 202.5, 'SW': 225.0, 'WSW': 247.5, 'W': 270.0,
@@ -1195,9 +1195,7 @@ class Structure(NestBase):
         return self._nest_api._status[STRUCTURES][self._serial]
 
     def _set_away(self, value, auto_away=False):
-        self._set('structure', {'away': AWAY_MAP[value],
-                                'away_timestamp': int(time.time()),
-                                'away_setter': int(auto_away)})
+        self._set('structures', {'away': AWAY_MAP[value]})
 
     @property
     def away(self):
