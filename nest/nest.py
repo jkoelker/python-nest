@@ -522,16 +522,26 @@ class Device(NestBase):
 
     @target.setter
     def target(self, value):
-        data = {'target_change_pending': True}
+        data = {}
 
-        if self._shared['target_temperature_type'] == 'range':
-            data['target_temperature_low'] = value[0]
-            data['target_temperature_high'] = value[1]
+        if self.mode == 'heat-cool':
+            if self.temperature_scale == 'C':
+                target_low_temperature_key = 'target_temperature_low_c'
+                target_high_temperature_key = 'target_temperature_high_c'
+            else:
+                target_low_temperature_key = 'target_temperature_low_f'
+                target_high_temperature_key = 'target_temperature_high_f'
 
+            data[target_low_temperature_key] = value[0]
+            data[target_high_temperature_key] = value[1]
         else:
-            data['target_temperature'] = value
+            if self.temperature_scale == 'C':
+                target_temperature_key = 'target_temperature_c'
+            else:
+                target_temperature_key = 'target_temperature_f'
+            data[target_temperature_key] = value
 
-        self._set('shared', data)
+        self._set('devices/thermostats', data)
 
     @property
     def away_temperature(self):
