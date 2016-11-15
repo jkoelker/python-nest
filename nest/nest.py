@@ -492,13 +492,25 @@ class Device(NestBase):
     def postal_code(self):
         return self._device['postal_code']
 
+    def temp_key(self, key):
+        return "%s_%s" % (key, self.temperature_scale.lower())
+
     @property
     def temperature_scale(self):
         return self._device['temperature_scale']
 
     @property
+    def is_locked(self):
+        return self._device['is_locked']
+
+    @property
+    def locked_temperature(self):
+        low = self._device[self.temp_key('locked_temp_min')]
+        high = self._device[self.temp_key('locked_temp_max')]
+        return LowHighTuple(low, high)
+
+    @property
     def temperature(self):
-        
         if self.temperature_scale == 'C':
             temperature_key = 'ambient_temperature_c'
         else:
