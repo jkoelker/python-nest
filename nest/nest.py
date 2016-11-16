@@ -983,43 +983,55 @@ class CameraDevice(NestBase):
 
     @property
     def is_audio_enabled(self):
-        return self._device['audio_input_enabled']
+        return self._device['is_audio_input_enabled']
+
+    @property
+    def is_public_share_enabled(self):
+        return self._device['is_public_share_enabled']
 
     @property
     def capabilities(self):
-        return self._device['capabilities']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['capabilities']
 
     @property
     def cvr(self):
-        return self._device['cvr_enrolled']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['cvr_enrolled']
 
     @property
     def description(self):
-        return self._device['description']
+        return self._device['name_long']
 
     @property
     def nexustalk_host(self):
-        return self._device['direct_nexustalk_host']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['direct_nexustalk_host']
 
     @property
     def download_host(self):
-        return self._device['download_host']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['download_host']
 
     @property
     def last_connected(self):
-        return self._device['last_connected_time']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['last_connected_time']
 
     @property
     def last_cuepoint(self):
-        return self._device['last_cuepoint']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['last_cuepoint']
 
     @property
     def live_stream(self):
-        return self._device['live_stream_host']
+        #return self._device['live_stream_host']
+        raise NotImplementedError("No longer available in Nest API")
 
     @property
     def mac_address(self):
-        return self._device['mac_address']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['mac_address']
 
     @property
     def model(self):
@@ -1027,160 +1039,109 @@ class CameraDevice(NestBase):
 
     @property
     def nexus_api_http_server_url(self):
-        return self._device['nexus_api_http_server_url']
+        #return self._device['nexus_api_http_server_url']
+        raise NotImplementedError("No longer available in Nest API")
 
     @property
     def streaming_state(self):
-        return self._device['streaming_state']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['streaming_state']
 
     @property
     def component_hum_test_passed(self):
-        return self._device['component_hum_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['component_hum_test_passed']
 
     @property
     def component_led_test_passed(self):
-        return self._device['component_led_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['component_led_test_passed']
 
     @property
     def component_pir_test_passed(self):
-        return self._device['component_pir_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['component_pir_test_passed']
 
     @property
     def component_smoke_test_passed(self):
-        return self._device['component_smoke_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['component_smoke_test_passed']
 
     @property
     def component_temp_test_passed(self):
-        return self._device['component_temp_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['component_temp_test_passed']
 
     @property
     def component_us_test_passed(self):
-        return self._device['component_us_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['component_us_test_passed']
 
     @property
     def component_wifi_test_passed(self):
-        return self._device['component_wifi_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['component_wifi_test_passed']
 
     @property
     def creation_time(self):
-        return self._device['creation_time']
-
-    @property
-    def description(self):
-        return self._device['description']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['creation_time']
 
     @property
     def device_external_color(self):
-        return self._device['device_external_color']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['device_external_color']
 
     @property
     def device_locale(self):
-        return self._device['device_locale']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['device_locale']
 
     @property
     def fabric_id(self):
-        return self._device['fabric_id']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['fabric_id']
 
     @property
     def factory_loaded_languages(self):
-        return self._device['factory_loaded_languages']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['factory_loaded_languages']
 
-    @property
-    def gesture_hush_enable(self):
-        return self._device['gesture_hush_enable']
-
-    @property
-    def heads_up_enable(self):
-        return self._device['heads_up_enable']
-
-    @property
-    def home_alarm_link_capable(self):
-        return self._device['home_alarm_link_capable']
-
-    @property
-    def home_alarm_link_connected(self):
-        return self._device['home_alarm_link_connected']
-
-    @property
-    def home_alarm_link_type(self):
-        return self._device['home_alarm_link_type']
-
-    @property
-    def hushed_state(self):
-        return self._device['hushed_state']
 
     @property
     def installed_locale(self):
-        return self._device['installed_locale']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['installed_locale']
 
     @property
     def kl_software_version(self):
-        return self._device['kl_software_version']
-
-    @property
-    def latest_manual_test_cancelled(self):
-        return self._device['latest_manual_test_cancelled']
-
-    @property
-    def latest_manual_test_end_utc_secs(self):
-        return self._device['latest_manual_test_end_utc_secs']
-
-    @property
-    def latest_manual_test_start_utc_secs(self):
-        return self._device['latest_manual_test_start_utc_secs']
-
-    @property
-    def line_power_present(self):
-        return self._device['line_power_present']
-
-    @property
-    def night_light_continuous(self):
-        if 'night_light_continuous' in self._device:
-            return self._device['night_light_continuous']
-
-    @property
-    def night_light_enable(self):
-        return self._device['night_light_enable']
-
-    @property
-    def ntp_green_led_enable(self):
-        return self._device['ntp_green_led_enable']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['kl_software_version']
 
     @property
     def product_id(self):
-        return self._device['product_id']
-
-    @property
-    def replace_by_date_utc_secs(self):
-        return self._device['replace_by_date_utc_secs']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['product_id']
 
     @property
     def resource_id(self):
-        return self._device['resource_id']
-
-    @property
-    def smoke_sequence_number(self):
-        return self._device['smoke_sequence_number']
-
-    @property
-    def smoke_status(self):
-        return self._device['smoke_status']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['resource_id']
 
     @property
     def software_version(self):
-        return self._device['software_version']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['software_version']
 
     @property
     def spoken_where_id(self):
-        return self._device['spoken_where_id']
-
-    @property
-    def steam_detection_enable(self):
-        return self._device['steam_detection_enable']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['spoken_where_id']
 
     @property
     def thread_mac_address(self):
-        return self._device['thread_mac_address']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['thread_mac_address']
 
     @property
     def where_id(self):
@@ -1188,23 +1149,18 @@ class CameraDevice(NestBase):
 
     @property
     def wifi_ip_address(self):
-        return self._device['wifi_ip_address']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['wifi_ip_address']
 
     @property
     def wifi_mac_address(self):
-        return self._device['wifi_mac_address']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['wifi_mac_address']
 
     @property
     def wifi_regulatory_domain(self):
-        return self._device['wifi_regulatory_domain']
-
-    @property
-    def wired_led_enable(self):
-        return self._device['wired_led_enable']
-
-    @property
-    def wired_or_battery(self):
-        return self._device['wired_or_battery']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['wifi_regulatory_domain']
 
     @property
     def snapshot_url(self):
