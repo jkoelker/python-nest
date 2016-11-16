@@ -561,6 +561,22 @@ class Device(NestBase):
     def hot_water_temperature(self):
         return self._device['hot_water_temperature']
 
+    @property
+    def eco(self):
+        eco_mode = self._device['eco']['mode']
+        # eco modes can be auto-eco or manual-eco
+        return eco_mode.endswith('eco')
+
+    @eco.setter
+    def eco(self, value):
+        data = {'eco': self._device['eco']}
+        if value:
+            data['eco']['mode'] = 'manual-eco'
+        else:
+            data['eco']['mode'] = 'schedule'
+        data['eco']['mode_update_timestamp'] = time.time()
+        self._set('device', data)
+
 
 class ProtectDevice(NestBase):
     @property
