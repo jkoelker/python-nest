@@ -3,6 +3,7 @@
 import collections
 import copy
 import datetime
+import hashlib
 import time
 import os
 import uuid
@@ -81,7 +82,14 @@ class APIError(Exception):
         super(APIError, self).__init__(message)
 
         self.response = response
-    pass
+
+class AuthorizationError(Exception):
+    def __init__(self, response):
+        message = response.json()['error_description']
+        # Call the base class constructor with the parameters it needs
+        super(APIError, self).__init__(message)
+
+        self.response = response
 
 class NestTZ(datetime.tzinfo):
     def __init__(self, gmt_offset):
@@ -103,11 +111,9 @@ class NestTZ(datetime.tzinfo):
 
 
 class NestAuth(auth.AuthBase):
-    def __init__(self, username, password, auth_callback=None, session=None,
+    def __init__(self, auth_callback=None, session=None,
                  access_token=None, access_token_cache_file=None):
         self._res = {}
-        self.username = username
-        self.password = password
         self.auth_callback = auth_callback
         self._access_token_cache_file = access_token_cache_file
 
@@ -1346,6 +1352,7 @@ class Nest(object):
     def __init__(self, username=None, password=None, cache_ttl=270,
                  user_agent='Nest/1.1.0.10 CFNetwork/548.0.4',
                  access_token=None, access_token_cache_file=None,
+                 client_id=None, client_secret=None,
                  local_time=False):
         self._urls = {}
         self._limits = {}
@@ -1355,14 +1362,45 @@ class Nest(object):
         self._staff = False
         self._superuser = False
         self._email = None
+
         self._cache_ttl = cache_ttl
         self._cache = (None, 0)
         self._weather = WeatherCache(self)
+
         self._local_time = local_time
         self._access_token = access_token
-        self._headers = {'Authorization': 'Bearer ' + self._access_token, 'Content-Type': 'application/json'}
+        self._client_id = client_id
+        self._client_secret = client_secret
 
-        # TODO add auth to help get an access token
+        self.pin = None
+
+    @property
+    def authorize_url(self):
+        state = hashlib.md5(os.urandom(32)).hexdigest()
+        return AUTHORIZE_URL.format(self._client_id, state)
+
+    def request_token(self):
+        data = {'client_id': self._client_id,
+                'client_secret': self._client_secret,
+                'code': self.pin,
+                'grant_type': 'authorization_code'}
+        response = requests.post('https://api.home.nest.com/oauth2/access_token',
+                                 data=data)
+        if response.status_code != 200:
+            raise AuthorizationError(response)
+
+        self._access_token = response.json()['access_token']
+
+    @property
+    def access_token(self):
+        return self._access_token
+
+    @property
+    def _headers(self):
+        if self._access_token is not None:
+            return {'Authorization': 'Bearer ' + self._access_token, 'Content-Type': 'application/json'}
+        else:
+            return {}
 
     def _request(self, verb, path = "/", data=None):
         url = "%s%s" % (API_URL, path)
