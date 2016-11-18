@@ -285,7 +285,8 @@ class NestBase(object):
 
     @property
     def weather(self):
-        return Weather(self._weather, self._local_time)
+        raise NotImplementedError("Deprecated Nest API")
+        #return Weather(self._weather, self._local_time)
 
     @property
     def serial(self):
@@ -449,19 +450,23 @@ class Device(NestBase):
 
     @property
     def local_ip(self):
-        return self._device['local_ip']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['local_ip']
 
     @property
     def last_ip(self):
-        return self._track['last_ip']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._track['last_ip']
 
     @property
     def last_connection(self):
-        return self._track['last_connection']
+        # TODO confirm this does get set, or if the API documentation is wrong
+        return self._device.get('last_connection')
 
     @property
     def error_code(self):
-        return self._device['error_code']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['error_code']
 
     @property
     def battery_level(self):
@@ -470,11 +475,13 @@ class Device(NestBase):
 
     @property
     def battery_health(self):
-        return self._device['battery_health']
+        raise NotImplementedError("No longer available in Nest API")
+        #return self._device['battery_health']
 
     @property
     def postal_code(self):
-        return self._device['postal_code']
+        return self._structure.postal_code
+        #return self._device['postal_code']
 
     def temp_key(self, key):
         return "%s_%s" % (key, self.temperature_scale.lower())
@@ -1252,7 +1259,8 @@ class Structure(NestBase):
 
     @property
     def postal_code(self):
-        return self._structure['postal_code']
+        # TODO check permissions if this is empty?
+        return self._structure.get('postal_code')
 
     @property
     def renovation_date(self):
