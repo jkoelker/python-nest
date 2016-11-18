@@ -338,7 +338,8 @@ class Device(NestBase):
 
     @property
     def _track(self):
-        return self._nest_api._status['track'][self._serial]
+        raise NotImplementedError("Deprecated Nest API")
+        #return self._nest_api._status['track'][self._serial]
 
     @property
     def _repr_name(self):
@@ -467,7 +468,7 @@ class Device(NestBase):
 
     @property
     def online(self):
-        return self._track['online']
+        return self._device['is_online']
 
     @property
     def local_ip(self):
