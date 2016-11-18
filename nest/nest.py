@@ -20,6 +20,7 @@ try:
 except ImportError:
     pytz = None
 
+ACCESS_TOKEN_URL = 'https://api.home.nest.com/oauth2/access_token'
 AUTHORIZE_URL = 'https://home.nest.com/login/oauth2?client_id={0}&state={1}'
 API_URL = 'https://developer-api.nest.com'
 LOGIN_URL = 'https://home.nest.com/user/login'
@@ -112,10 +113,15 @@ class NestTZ(datetime.tzinfo):
 
 class NestAuth(auth.AuthBase):
     def __init__(self, auth_callback=None, session=None,
+                 client_id=None, client_secret=None,
                  access_token=None, access_token_cache_file=None):
         self._res = {}
         self.auth_callback = auth_callback
+        self.pin = None
         self._access_token_cache_file = access_token_cache_file
+        self._client_id = client_id
+        self._client_secret = client_secret
+        self._access_token = access_token
 
         if (access_token_cache_file is not None and
                 access_token is None and
@@ -142,8 +148,11 @@ class NestAuth(auth.AuthBase):
                                                          collections.Callable):
             self.auth_callback(self._res)
 
-    def _login(self, headers=None):
-        data = {'username': self.username, 'password': self.password}
+    def login(self, headers=None):
+        data = {'client_id': self._client_id,
+                'client_secret': self._client_secret,
+                'code': self.pin,
+                'grant_type': 'authorization_code'}
 
         post = requests.post
 
@@ -151,54 +160,22 @@ class NestAuth(auth.AuthBase):
             session = self._session()
             post = session.post
 
-        response = post(LOGIN_URL, data=data, headers=headers)
-        response.raise_for_status()
+        response = post(ACCESS_TOKEN_URL, data=data, headers=headers)
+        if response.status_code != 200:
+            raise AuthorizationError(response)
         self._res = response.json()
 
         self._cache()
         self._callback(self._res)
 
-    def _perhaps_relogin(self, r, **kwargs):
-        if r.status_code == 401:
-            self._login(r.headers.copy())
-            req = r.request.copy()
-            req.hooks = hooks.default_hooks()
-            req.headers['Authorization'] = 'Basic ' + self.access_token
-
-            adapter = self._adapter
-            if self._session:
-                session = self.session()
-                if session:
-                    adapter = session.get_adapter(req.url)
-
-            response = adapter.send(req, **kwargs)
-            response.history.append(r)
-
-            return response
-
-        return r
-
     @property
     def access_token(self):
-        return self._res.get('access_token')
-
-    @property
-    def urls(self):
-        if not self._res.get('urls'):
-            # NOTE(jkoelker) Bootstrap the URLs
-            self._login()
-
-        return self._res.get('urls')
-
-    @property
-    def user(self):
-        return self._res.get('user')
+        return self._res.get('access_token', self._access_token)
 
     def __call__(self, r):
         if self.access_token:
-            r.headers['Authorization'] = 'Basic ' + self.access_token
+            r.headers['Authorization'] = 'Bearer ' + self.access_token
 
-        r.register_hook('response', self._perhaps_relogin)
         return r
 
 
@@ -1369,39 +1346,40 @@ class Nest(object):
         self._weather = WeatherCache(self)
 
         self._local_time = local_time
+
+        def auth_callback(result):
+            self._access_token = result['access_token']
+
         self._access_token = access_token
         self._client_id = client_id
         self._client_secret = client_secret
 
-        self.pin = None
+        self._session = requests.Session()
+        auth = NestAuth(client_id=self._client_id, client_secret=self._client_secret,
+                        session=self._session, access_token=access_token,
+                        access_token_cache_file=access_token_cache_file)
+        self._session.auth = auth
+
 
     @property
     def authorize_url(self):
         state = hashlib.md5(os.urandom(32)).hexdigest()
         return AUTHORIZE_URL.format(self._client_id, state)
 
-    def request_token(self):
-        data = {'client_id': self._client_id,
-                'client_secret': self._client_secret,
-                'code': self.pin,
-                'grant_type': 'authorization_code'}
-        response = requests.post('https://api.home.nest.com/oauth2/access_token',
-                                 data=data)
-        if response.status_code != 200:
-            raise AuthorizationError(response)
-
-        self._access_token = response.json()['access_token']
+    def request_token(self, pin):
+        self._session.auth.pin = pin
+        self._session.auth.login()
 
     @property
     def access_token(self):
-        return self._access_token
+        return self._access_token or self._session.auth.access_token
 
-    @property
-    def _headers(self):
-        if self._access_token is not None:
-            return {'Authorization': 'Bearer ' + self._access_token, 'Content-Type': 'application/json'}
-        else:
-            return {}
+    #@property
+    #def _headers(self):
+    #    if self._access_token is not None:
+    #        return {'Authorization': 'Bearer ' + self._access_token, 'Content-Type': 'application/json'}
+    #    else:
+    #        return {}
 
     def _request(self, verb, path = "/", data=None):
         url = "%s%s" % (API_URL, path)
@@ -1409,7 +1387,7 @@ class Nest(object):
         if data is not None:
             data = json.dumps(data)
 
-        response = requests.request(verb, url, headers=self._headers, allow_redirects=False, data=data)
+        response = self._session.request(verb, url, allow_redirects=False, data=data)
         if response.status_code == 200:
             return response.json()
 
@@ -1417,7 +1395,7 @@ class Nest(object):
             raise APIError(response)
 
         redirect_url = response.headers['Location']
-        response = requests.request(verb, redirect_url, headers=self._headers, allow_redirects=False, data=data)
+        response = self._session.request(verb, redirect_url, allow_redirects=False, data=data)
         # TODO check for 429 status code for too frequent access. see https://developers.nest.com/documentation/cloud/data-rate-limits
         if 400 <= response.status_code < 600:
             raise APIError(response)
