@@ -24,6 +24,7 @@ ACCESS_TOKEN_URL = 'https://api.home.nest.com/oauth2/access_token'
 AUTHORIZE_URL = 'https://home.nest.com/login/oauth2?client_id={0}&state={1}'
 API_URL = 'https://developer-api.nest.com'
 LOGIN_URL = 'https://home.nest.com/user/login'
+SIMULATOR_SNAPSHOT_URL = 'https://developer.nest.com/simulator/api/v1/nest/devices/camera/snapshot'
 
 AWAY_MAP = {'on': 'away',
             'away': 'away',
@@ -1155,7 +1156,10 @@ class CameraDevice(NestBase):
 
     @property
     def snapshot_url(self):
-        return self._device['snapshot_url']
+        if self._device['snapshot_url'] != SIMULATOR_SNAPSHOT_URL:
+            returnelf._device['snapshot_url']
+        else:
+            return 'https://media.giphy.com/media/WCwFvyeb6WJna/giphy.gif'
 
 
 class Structure(NestBase):
