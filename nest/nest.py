@@ -411,39 +411,48 @@ class Device(NestBase):
 
     @property
     def hvac_ac_state(self):
-        return self._shared['hvac_ac_state'] 
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_ac_state'] 
 
     @property
     def hvac_cool_x2_state(self):
-        return self._shared['hvac_cool_x2_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_cool_x2_state']
 
     @property
     def hvac_heater_state(self):
-        return self._shared['hvac_heater_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_heater_state']
 
     @property
     def hvac_aux_heater_state(self):
-        return self._shared['hvac_aux_heater_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_aux_heater_state']
 
     @property
     def hvac_heat_x2_state(self):
-        return self._shared['hvac_heat_x2_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_heat_x2_state']
 
     @property
     def hvac_heat_x3_state(self):
-        return self._shared['hvac_heat_x3_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_heat_x3_state']
 
     @property
     def hvac_alt_heat_state(self):
-        return self._shared['hvac_alt_heat_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_alt_heat_state']
 
     @property
     def hvac_alt_heat_x2_state(self):
-        return self._shared['hvac_alt_heat_x2_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_alt_heat_x2_state']
 
     @property
     def hvac_emer_heat_state(self):
-        return self._shared['hvac_emer_heat_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_emer_heat_state']
 
     @property
     def online(self):
@@ -452,12 +461,12 @@ class Device(NestBase):
     @property
     def local_ip(self):
         raise NotImplementedError("No longer available in Nest API")
-        #return self._device['local_ip']
+        # return self._device['local_ip']
 
     @property
     def last_ip(self):
         raise NotImplementedError("No longer available in Nest API")
-        #return self._track['last_ip']
+        # return self._track['last_ip']
 
     @property
     def last_connection(self):
@@ -467,17 +476,17 @@ class Device(NestBase):
     @property
     def error_code(self):
         raise NotImplementedError("No longer available in Nest API")
-        #return self._device['error_code']
+        # return self._device['error_code']
 
     @property
     def battery_level(self):
         raise NotImplementedError("No longer available in Nest API")
-        #return self._device['battery_level']
+        # return self._device['battery_level']
 
     @property
     def battery_health(self):
         raise NotImplementedError("No longer available in Nest API")
-        #return self._device['battery_health']
+        # return self._device['battery_health']
 
     @property
     def postal_code(self):
