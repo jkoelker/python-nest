@@ -512,7 +512,7 @@ class Device(NestBase):
 
     @property
     def temperature(self):
-        return self._device[_temp_key('ambient_temperature')]
+        return self._device[self._temp_key('ambient_temperature')]
 
     @temperature.setter
     def temperature(self, value):
