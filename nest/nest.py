@@ -493,7 +493,7 @@ class Device(NestBase):
         return self._structure.postal_code
         #return self._device['postal_code']
 
-    def temp_key(self, key):
+    def _temp_key(self, key):
         return "%s_%s" % (key, self.temperature_scale.lower())
 
     @property
@@ -506,17 +506,13 @@ class Device(NestBase):
 
     @property
     def locked_temperature(self):
-        low = self._device[self.temp_key('locked_temp_min')]
-        high = self._device[self.temp_key('locked_temp_max')]
+        low = self._device[self._temp_key('locked_temp_min')]
+        high = self._device[self._temp_key('locked_temp_max')]
         return LowHighTuple(low, high)
 
     @property
     def temperature(self):
-        if self.temperature_scale == 'C':
-            temperature_key = 'ambient_temperature_c'
-        else:
-            temperature_key = 'ambient_temperature_f'
-        return self._device[temperature_key]
+        return self._device[_temp_key('ambient_temperature')]
 
     @temperature.setter
     def temperature(self, value):
@@ -525,43 +521,21 @@ class Device(NestBase):
     @property
     def target(self):
         if self.mode == 'heat-cool':
-            if self.temperature_scale == 'C':
-                target_low_temperature_key = 'target_temperature_low_c'
-                target_high_temperature_key = 'target_temperature_high_c'
-            else:
-                target_low_temperature_key = 'target_temperature_low_f'
-                target_high_temperature_key = 'target_temperature_high_f'
-            low = self._device[target_low_temperature_key]
-            high = self._device[target_high_temperature_key]
+            low = self._device[self._temp_key('target_temperature_low')]
+            high = self._device[self._temp_key('target_temperature_high')]
             return LowHighTuple(low, high)
 
-        if self.temperature_scale == 'C':
-            target_temperature_key = 'target_temperature_c'
-        else:
-            target_temperature_key = 'target_temperature_f'
-
-        return self._device[target_temperature_key]
+        return self._device[self._temp_key('target_temperature')]
 
     @target.setter
     def target(self, value):
         data = {}
 
         if self.mode == 'heat-cool':
-            if self.temperature_scale == 'C':
-                target_low_temperature_key = 'target_temperature_low_c'
-                target_high_temperature_key = 'target_temperature_high_c'
-            else:
-                target_low_temperature_key = 'target_temperature_low_f'
-                target_high_temperature_key = 'target_temperature_high_f'
-
-            data[target_low_temperature_key] = value[0]
-            data[target_high_temperature_key] = value[1]
+            data[self._temp_key('target_temperature_low')] = value[0]
+            data[self._temp_key('target_temperature_high')] = value[1]
         else:
-            if self.temperature_scale == 'C':
-                target_temperature_key = 'target_temperature_c'
-            else:
-                target_temperature_key = 'target_temperature_f'
-            data[target_temperature_key] = value
+            data[self._temp_key('target_temperature')] = value
 
         self._set('devices/thermostats', data)
 
@@ -577,39 +551,21 @@ class Device(NestBase):
 
     @property
     def eco_temperature(self):
-        low = None
-        high = None
-
-        if self.temperature_scale == 'C':
-            eco_temperature_low_key = 'eco_temperature_low_c'
-            eco_temperature_high_key = 'eco_temperature_high_c'
-        else:
-            eco_temperature_low_key = 'eco_temperature_low_f'
-            eco_temperature_high_key = 'eco_temperature_high_f'
-
-        low = self._device[eco_temperature_low_key]
-        high = self._device[eco_temperature_high_key]
+        low = self._device[self._temp_key('eco_temperature_low')]
+        high = self._device[self._temp_key('eco_temperature_high')]
 
         return LowHighTuple(low, high)
 
     @eco_temperature.setter
     def eco_temperature(self, value):
         low, high = value
-
         data = {}
-        if self.temperature_scale == 'C':
-            eco_temperature_low_key = 'eco_temperature_low_c'
-            eco_temperature_high_key = 'eco_temperature_high_c'
-        else:
-            eco_temperature_low_key = 'eco_temperature_low_f'
-            eco_temperature_high_key = 'eco_temperature_high_f'
 
         if low is not None:
-            data[eco_temperature_low_key] = low
+            data[self._temp_key('eco_temperature_low')] = low
 
         if high is not None:
-            data[eco_temperature_high_key] = high
-
+            data[self._temp_key('eco_temperature_high')] = high
 
         self._set('devices/thermostats', data)
 
