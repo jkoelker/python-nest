@@ -646,6 +646,10 @@ class ProtectDevice(NestBase):
         return self.where
 
     @property
+    def name(self):
+        return self._device['name']
+
+    @property
     def structure(self):
         return Structure(self._device['structure_id'],
                          self._nest_api, self._local_time)
