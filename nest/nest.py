@@ -187,8 +187,7 @@ class Wind(object):
 
     @property
     def azimuth(self):
-        return AZIMUTH_MAP[self.direction]
-	        return AZIMUTH_MAP[self.direction] if self.direction is not None else None
+        return AZIMUTH_MAP[self.direction] if self.direction is not None else None
 
 
 
