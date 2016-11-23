@@ -227,39 +227,7 @@ class Forecast(object):
 
 class Weather(object):
     def __init__(self, weather, local_time):
-        self._weather = weather
-
-        self._tz = None
-        if local_time:
-            if pytz:
-                self._tz = pytz.timezone(weather['location']['timezone_long'])
-
-            else:
-                self._tz = NestTZ(weather['location']['gmt_offset'])
-
-    @property
-    def _current(self):
-        return self._weather['current']
-
-    @property
-    def _daily(self):
-        return self._weather['forecast']['daily']
-
-    @property
-    def _hourly(self):
-        return self._weather['forecast']['hourly']
-
-    @property
-    def current(self):
-        return Forecast(self._current, self._tz)
-
-    @property
-    def daily(self):
-        return [Forecast(f, self._tz) for f in self._daily]
-
-    @property
-    def hourly(self):
-        return [Forecast(f, self._tz) for f in self._hourly]
+        raise NotImplementedError("Deprecated Nest API")
 
 
 class NestBase(object):
@@ -281,13 +249,14 @@ class NestBase(object):
 
     @property
     def _weather(self):
-        merge_code = self.postal_code + ',' + self.country_code
-        return self._nest_api._weather[merge_code]
+        raise NotImplementedError("Deprecated Nest API")
+        # merge_code = self.postal_code + ',' + self.country_code
+        # return self._nest_api._weather[merge_code]
 
     @property
     def weather(self):
         raise NotImplementedError("Deprecated Nest API")
-        #return Weather(self._weather, self._local_time)
+        # return Weather(self._weather, self._local_time)
 
     @property
     def serial(self):
@@ -313,12 +282,13 @@ class Device(NestBase):
 
     @property
     def _shared(self):
-        return self._nest_api._status['shared'][self._serial]
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._nest_api._status['shared'][self._serial]
 
     @property
     def _track(self):
         raise NotImplementedError("Deprecated Nest API")
-        #return self._nest_api._status['track'][self._serial]
+        # return self._nest_api._status['track'][self._serial]
 
     @property
     def _repr_name(self):
