@@ -892,10 +892,41 @@ class ProtectDevice(NestBase):
         #return self._device['wired_or_battery']
 
 
+class ActivityZone(NestBase):
+    def __init__(self, serial, nest_api, local_time, zone_id):
+        NestBase.__init__(self, serial, nest_api, local_time)
+        self._zone_id = zone_id
+
+    @property
+    def _repr_name(self):
+        return self.name
+
+    @property
+    def _camera(self):
+        return self._devices[CAMERAS][self._serial]
+
+    @property
+    def _activity_zone(self):
+        return next(z for z in self._camera['activity_zones'] if z['id'] == self.zone_id)
+
+    @property
+    def zone_id(self):
+        return self._zone_id
+
+    @property
+    def name(self):
+        return self._activity_zone['name']
+
+
 class CameraDevice(NestBase):
     @property
     def _device(self):
         return self._devices[CAMERAS][self._serial]
+
+    @property
+    def activity_zones(self):
+        return [ActivityZone(self.serial, self._nest_api, self._local_time, z['id'])
+                for z in self._device['activity_zones']]
 
     @property
     def name(self):
