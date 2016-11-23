@@ -69,6 +69,7 @@ You can import the module as `nest`.
             print '            Target   : %0.1fC' % device.target
             print '            Away Heat: %0.1fC' % device.away_temperature[0]
             print '            Away Cool: %0.1fC' % device.away_temperature[1]
+            print '            Eco      : %s' % device.eco
 
             print '            hvac_ac_state         : %s' % device.hvac_ac_state
             print '            hvac_cool_x2_state    : %s' % device.hvac_cool_x2_state
