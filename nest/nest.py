@@ -190,7 +190,6 @@ class Wind(object):
         return AZIMUTH_MAP[self.direction] if self.direction is not None else None
 
 
-
 class Forecast(object):
     def __init__(self, forecast, tz=None):
         self._forecast = forecast

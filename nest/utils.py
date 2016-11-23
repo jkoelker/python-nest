@@ -37,7 +37,6 @@ def kph_to_mph(s):
 
 
 #mph = km/h / 1.6093440057
-#    = km/h * 0.62137119
 def mph_to_kph(s):
     s = decimal.Decimal(s)
     return float(s / _ONEPOINTSIXZERONINETHREEFOUR)
