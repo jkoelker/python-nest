@@ -895,7 +895,8 @@ class ProtectDevice(NestBase):
 class ActivityZone(NestBase):
     def __init__(self, serial, nest_api, local_time, zone_id):
         NestBase.__init__(self, serial, nest_api, local_time)
-        self._zone_id = zone_id
+# camera's activity_zone dict has int, but an event's list of activity_zone ids is strings `\/0_0\/`
+        self._zone_id = int(zone_id) 
 
     @property
     def _repr_name(self):
@@ -918,6 +919,70 @@ class ActivityZone(NestBase):
         return self._activity_zone['name']
 
 
+class CameraEvent(NestBase):
+    def __init__(self, camera_serial, nest_api, local_time):
+        NestBase.__init__(self, camera_serial, nest_api, local_time)
+
+    @property
+    def _camera(self):
+        return self._devices[CAMERAS][self._serial]
+
+    @property
+    def _event(self):
+        return self._camera['last_event']
+
+    def __repr__(self):
+        return '<%s>' % (self.__class__.__name__)
+
+    @property
+    def activity_zones(self):
+        if 'activity_zone_ids' in self._event:
+            return [ActivityZone(self.serial, self._nest_api, self._local_time, z)
+                    for z in self._event['activity_zone_ids']]
+
+    @property
+    def animated_image_url(self):
+        return self._event['animated_image_url']
+
+    @property
+    def app_url(self):
+        return self._event['app_url']
+
+    @property
+    def has_motion(self):
+        return self._event['has_motion']
+
+    @property
+    def has_person(self):
+        return self._event['has_person']
+
+    @property
+    def has_sound(self):
+        return self._event['has_sound']
+
+    @property
+    def image_url(self):
+        return self._event['image_url']
+
+    @property
+    def start_time(self):
+        if 'start_time' in self._event:
+            return self._event['start_time'] # TODO parse to time object
+
+    @property
+    def end_time(self):
+        if 'end_time' in self._event:
+            return self._event['end_time'] # TODO parse to time object
+
+    @property
+    def urls_expire_time(self):
+        return self._event['urls_expire_time'] # TODO parse to time object
+
+    @property
+    def web_url(self):
+        return self._event['web_url']
+
+
 class CameraDevice(NestBase):
     @property
     def _device(self):
@@ -927,6 +992,11 @@ class CameraDevice(NestBase):
     def activity_zones(self):
         return [ActivityZone(self.serial, self._nest_api, self._local_time, z['id'])
                 for z in self._device['activity_zones']]
+
+    @property
+    def last_event(self):
+        if 'last_event' in self._device:
+            return CameraEvent(self.serial, self._nest_api, self._local_time)
 
     @property
     def name(self):
