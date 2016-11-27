@@ -25,7 +25,7 @@ setup(name='python-nest',
       url='https://github.com/jkoelker/python-nest/',
       packages=['nest'],
       install_requires=['requests>=1.0.0',
-                        'six>=1.10.0'
+                        'six>=1.10.0',
                         'python-dateutil'],
       entry_points={
           'console_scripts': ['nest=nest.command_line:main'],
