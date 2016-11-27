@@ -3,6 +3,8 @@
 import collections
 import copy
 import datetime
+import dateutil
+from dateutil.parser import parse as parse_time
 import hashlib
 import time
 import os
@@ -934,6 +936,11 @@ class CameraEvent(NestBase):
     def __repr__(self):
         return '<%s>' % (self.__class__.__name__)
 
+    def activity_in_zone(self, zone_id):
+        if 'activity_zone_ids' in self._event:
+            return str(zone_id) in self._event['activity_zone_ids']
+        return False
+
     @property
     def activity_zones(self):
         if 'activity_zone_ids' in self._event:
@@ -967,26 +974,64 @@ class CameraEvent(NestBase):
     @property
     def start_time(self):
         if 'start_time' in self._event:
-            return self._event['start_time'] # TODO parse to time object
+            return parse_time(self._event['start_time'])
 
     @property
     def end_time(self):
         if 'end_time' in self._event:
-            return self._event['end_time'] # TODO parse to time object
+            return parse_time(self._event['end_time'])
 
     @property
     def urls_expire_time(self):
-        return self._event['urls_expire_time'] # TODO parse to time object
+        if 'urls_expire_time' in self._event:
+            return parse_time(self._event['urls_expire_time'])
 
     @property
     def web_url(self):
         return self._event['web_url']
+
+    @property
+    def is_ongoing(self):
+        if self.end_time is not None:
+            # sometimes, existing event is updated with a new start time
+            # that's before the end_time which implies something new
+            if self.start_time > self.end_time:
+                return True
+
+            now = datetime.datetime.now(self.end_time.tzinfo)
+            # end time should be in the past
+            return self.end_time > now
+        # no end_time implies it's ongoing
+        return True
+
+    def has_ongoing_motion_in_zone(self, zone_id):
+        if self.is_ongoing and self.has_motion:
+            return self.activity_in_zone(zone_id)
+
+    def has_ongoing_sound(self):
+        if self.is_ongoing and self.has_motion:
+            return self.has_sound
 
 
 class CameraDevice(NestBase):
     @property
     def _device(self):
         return self._devices[CAMERAS][self._serial]
+
+    @property
+    def ongoing_event(self):
+        if self.last_event is not None and self.last_event.is_ongoing:
+            return self.last_event
+
+    def has_ongoing_motion_in_zone(self, zone_id):
+        if self.ongoing_event is not None:
+            return self.last_event.has_ongoing_motion_in_zone(zone_id)
+        return False
+
+    def has_ongoing_sound(self):
+        if self.ongoing_event is not None:
+            return self.last_event.has_ongoing_sound()
+        return False
 
     @property
     def activity_zones(self):
