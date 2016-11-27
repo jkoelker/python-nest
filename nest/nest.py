@@ -423,8 +423,12 @@ class Device(NestBase):
 
     @property
     def hvac_emer_heat_state(self):
-        raise NotImplementedError("No longer available in Nest API")
+        raise NotImplementedError("No longer available in Nest API. See is_using_emergency_heat instead")
         # return self._shared['hvac_emer_heat_state']
+
+    @property
+    def is_using_emergency_heat(self):
+        return self._device['is_using_emergency_heat']
 
     @property
     def online(self):
