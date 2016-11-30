@@ -1015,8 +1015,17 @@ class CameraEvent(NestBase):
             return self.activity_in_zone(zone_id)
 
     def has_ongoing_sound(self):
-        if self.is_ongoing and self.has_motion:
+        if self.is_ongoing:
             return self.has_sound
+
+    def has_ongoing_motion(self):
+        if self.is_ongoing:
+            return self.has_motion
+
+    def has_ongoing_person(self):
+        if self.is_ongoing:
+            return self.has_person
+
 
 
 class CameraDevice(NestBase):
@@ -1034,9 +1043,22 @@ class CameraDevice(NestBase):
             return self.last_event.has_ongoing_motion_in_zone(zone_id)
         return False
 
-    def has_ongoing_sound(self):
+    @property
+    def sound_detected(self):
         if self.ongoing_event is not None:
             return self.last_event.has_ongoing_sound()
+        return False
+
+    @property
+    def motion_detected(self):
+        if self.ongoing_event is not None:
+            return self.last_event.has_ongoing_motion()
+        return False
+
+    @property
+    def person_detected(self):
+        if self.ongoing_event is not None:
+            return self.last_event.has_ongoing_person()
         return False
 
     @property
