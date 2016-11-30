@@ -266,7 +266,20 @@ class NestBase(object):
 
     @property
     def name(self):
-        return self._serial
+        return self._device['name']
+
+    @property
+    def name_long(self):
+        return self._device['name_long']
+
+    @name.setter
+    def name(self, value):
+        raise NotImplementedError("Needs updating with new API")
+        self._set('shared', {'name': value})
+
+    @property
+    def online(self):
+        return self._device['is_online']
 
     @property
     def _devices(self):
@@ -373,13 +386,10 @@ class Device(NestBase):
     def mode(self, value):
         self._set('devices/thermostats', {'hvac_mode': value.lower()})
 
-    @property
-    def name(self):
-        return self._device['name']
 
-    @name.setter
-    def name(self, value):
-        self._set('shared', {'name': value})
+    @property
+    def has_leaf(self):
+        return self._device['has_leaf'] 
 
     @property
     def hvac_ac_state(self):
@@ -429,10 +439,6 @@ class Device(NestBase):
     @property
     def is_using_emergency_heat(self):
         return self._device['is_using_emergency_heat']
-
-    @property
-    def online(self):
-        return self._device['is_online']
 
     @property
     def local_ip(self):
@@ -603,10 +609,6 @@ class ProtectDevice(NestBase):
             return self.name
 
         return self.where
-
-    @property
-    def name(self):
-        return self._device['name']
 
     @property
     def structure(self):
@@ -1046,10 +1048,6 @@ class CameraDevice(NestBase):
     def last_event(self):
         if 'last_event' in self._device:
             return CameraEvent(self.serial, self._nest_api, self._local_time)
-
-    @property
-    def name(self):
-        return self._device['name']
 
     @property
     def _repr_name(self):
