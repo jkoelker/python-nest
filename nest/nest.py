@@ -182,56 +182,6 @@ class NestAuth(auth.AuthBase):
         return r
 
 
-class Wind(object):
-    def __init__(self, direction=None, kph=None):
-        self.direction = direction
-        self.kph = kph
-
-    @property
-    def azimuth(self):
-        return AZIMUTH_MAP[self.direction]
-
-
-class Forecast(object):
-    def __init__(self, forecast, tz=None):
-        self._forecast = forecast
-        self._tz = tz
-        self.condition = forecast.get('condition')
-        self.humidity = forecast['humidity']
-        self._icon = forecast.get('icon')
-
-        fget = forecast.get
-        self._time = float(fget('observation_time',
-                                fget('time',
-                                     fget('date',
-                                          fget('observation_epoch')))))
-
-    def __repr__(self):
-        return '<%s: %s>' % (self.__class__.__name__,
-                             self.datetime.strftime('%Y-%m-%d %H:%M:%S'))
-
-    @property
-    def datetime(self):
-        return datetime.datetime.fromtimestamp(self._time, self._tz)
-
-    @property
-    def temperature(self):
-        if 'temp_low_c' in self._forecast:
-            return LowHighTuple(self._forecast['temp_low_c'],
-                                self._forecast['temp_high_c'])
-
-        return self._forecast['temp_c']
-
-    @property
-    def wind(self):
-        return Wind(self._forecast['wind_dir'], self._forecast.get('wind_kph'))
-
-
-class Weather(object):
-    def __init__(self, weather, local_time):
-        raise NotImplementedError("Deprecated Nest API")
-
-
 class NestBase(object):
     def __init__(self, serial, nest_api, local_time=False):
         self._serial = serial
@@ -1445,26 +1395,6 @@ class Structure(NestBase):
         return ident
 
 
-class WeatherCache(object):
-    def __init__(self, nest_api, cache_ttl=270):
-        self._nest_api = nest_api
-        self._cache_ttl = cache_ttl
-        self._cache = {}
-
-    def __getitem__(self, postal_code):
-        value, last_update = self._cache.get(postal_code, (None, 0))
-        now = time.time()
-
-        if not value or now - last_update > self._cache_ttl:
-            url = self._nest_api.urls['weather_url'] + postal_code
-            response = self._nest_api._session.get(url)
-            response.raise_for_status()
-            value = response.json()[postal_code]
-            self._cache[postal_code] = (value, now)
-
-        return value
-
-
 class Nest(object):
     def __init__(self, username=None, password=None, cache_ttl=270,
                  user_agent='Nest/1.1.0.10 CFNetwork/548.0.4',
@@ -1482,7 +1412,6 @@ class Nest(object):
 
         self._cache_ttl = cache_ttl
         self._cache = (None, 0)
-        self._weather = WeatherCache(self)
 
         self._local_time = local_time
 
