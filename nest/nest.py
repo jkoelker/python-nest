@@ -16,6 +16,7 @@ from requests import auth
 from requests import adapters
 from requests.compat import json
 from requests import hooks
+from IPython import embed
 
 try:
     import pytz
@@ -59,16 +60,15 @@ AZIMUTH_ALIASES = (('North', 'N'),
 for (alias, key) in AZIMUTH_ALIASES:
     AZIMUTH_MAP[alias] = AZIMUTH_MAP[key]
 
-FAN_MAP = {'auto on': 'auto',
-           'on': 'on',
-           'auto': 'auto',
-           'always on': 'on',
-           '1': 'on',
-           '0': 'auto',
-           1: 'on',
-           0: 'auto',
-           True: 'on',
-           False: 'auto'}
+FAN_MAP = {'auto on': False,
+           'on': True,
+           'auto': False,
+           '1': True,
+           '0': False,
+           1: True,
+           0: False,
+           True: True,
+           False: False}
 
 
 LowHighTuple = collections.namedtuple('LowHighTuple', ('low', 'high'))
@@ -290,7 +290,11 @@ class Device(NestBase):
 
     @fan.setter
     def fan(self, value):
-        self._set('device', {'fan_mode': FAN_MAP.get(value, 'auto')})
+        mapped_value = FAN_MAP.get(value, False)
+        if mapped_value is None:
+            raise ValueError("Only True and False supported")
+
+        self._set('device', {'fan_timer_active': mapped_value})
 
     @property
     def humidity(self):
