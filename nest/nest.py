@@ -16,7 +16,6 @@ from requests import auth
 from requests import adapters
 from requests.compat import json
 from requests import hooks
-from IPython import embed
 
 try:
     import pytz
