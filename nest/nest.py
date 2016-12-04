@@ -1237,7 +1237,7 @@ class CameraDevice(NestBase):
     @property
     def snapshot_url(self):
         if self._device['snapshot_url'] != SIMULATOR_SNAPSHOT_URL:
-            returnelf._device['snapshot_url']
+            return self._device['snapshot_url']
         else:
             return 'https://media.giphy.com/media/WCwFvyeb6WJna/giphy.gif'
 
