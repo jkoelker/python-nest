@@ -36,30 +36,6 @@ AWAY_MAP = {'on': 'away',
             'home': 'home',
             True: 'away',
             False: 'home'}
-AZIMUTH_MAP = {'N': 0.0, 'NNE': 22.5, 'NE': 45.0, 'ENE': 67.5, 'E': 90.0,
-               'ESE': 112.5, 'SE': 135.0, 'SSE': 157.5, 'S': 180.0,
-               'SSW': 202.5, 'SW': 225.0, 'WSW': 247.5, 'W': 270.0,
-               'WNW': 292.5, 'NW': 315.0, 'NNW': 337.5}
-
-AZIMUTH_ALIASES = (('North', 'N'),
-                   ('North North East', 'NNE'),
-                   ('North East', 'NE'),
-                   ('North North East', 'NNE'),
-                   ('East', 'E'),
-                   ('East South East', 'ESE'),
-                   ('South East', 'SE'),
-                   ('South South East', 'SSE'),
-                   ('South', 'S'),
-                   ('South South West', 'SSW'),
-                   ('South West', 'SW'),
-                   ('West South West', 'WSW'),
-                   ('West', 'W'),
-                   ('West North West', 'WNW'),
-                   ('North West', 'NW'),
-                   ('North North West', 'NNW'))
-
-for (alias, key) in AZIMUTH_ALIASES:
-    AZIMUTH_MAP[alias] = AZIMUTH_MAP[key]
 
 FAN_MAP = {'auto on': False,
            'on': True,
@@ -70,7 +46,6 @@ FAN_MAP = {'auto on': False,
            0: False,
            True: True,
            False: False}
-
 
 LowHighTuple = collections.namedtuple('LowHighTuple', ('low', 'high'))
 
