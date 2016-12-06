@@ -55,6 +55,13 @@ THERMOSTATS = 'thermostats'
 SMOKE_CO_ALARMS = 'smoke_co_alarms'
 CAMERAS = 'cameras'
 
+# https://developers.nest.com/documentation/api-reference/overview#targettemperaturef
+MINIMUM_TEMPERATURE_F = 50
+MAXIMUM_TEMPERATURE_F = 90
+# https://developers.nest.com/documentation/api-reference/overview#targettemperaturec
+MINIMUM_TEMPERATURE_C = 9
+MAXIMUM_TEMPERATURE_C = 32
+
 
 class APIError(Exception):
     def __init__(self, response):
@@ -412,6 +419,27 @@ class Device(NestBase):
     @property
     def temperature(self):
         return self._device[self._temp_key('ambient_temperature')]
+
+    @property
+    def min_temperature(self):
+        if self.is_locked:
+            return locked_temperature[0]
+        else:
+            if self.temperature_scale == 'C':
+                return MINIMUM_TEMPERATURE_C
+            else:
+                return MINIMUM_TEMPERATURE_F
+
+    @property
+    def max_temperature(self):
+        if self.is_locked:
+            return locked_temperature[1]
+        else:
+            if self.temperature_scale == 'C':
+                return MAXIMUM_TEMPERATURE_C
+            else:
+                return MAXIMUM_TEMPERATURE_F
+
 
     @temperature.setter
     def temperature(self, value):
