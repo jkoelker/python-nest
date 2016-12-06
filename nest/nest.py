@@ -423,7 +423,7 @@ class Device(NestBase):
     @property
     def min_temperature(self):
         if self.is_locked:
-            return locked_temperature[0]
+            return self.locked_temperature[0]
         else:
             if self.temperature_scale == 'C':
                 return MINIMUM_TEMPERATURE_C
@@ -433,13 +433,12 @@ class Device(NestBase):
     @property
     def max_temperature(self):
         if self.is_locked:
-            return locked_temperature[1]
+            return self.locked_temperature[1]
         else:
             if self.temperature_scale == 'C':
                 return MAXIMUM_TEMPERATURE_C
             else:
                 return MAXIMUM_TEMPERATURE_F
-
 
     @temperature.setter
     def temperature(self, value):
