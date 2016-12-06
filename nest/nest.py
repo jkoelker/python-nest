@@ -402,6 +402,13 @@ class Device(NestBase):
     def _temp_key(self, key):
         return "%s_%s" % (key, self.temperature_scale.lower())
 
+    def _round_temp(self, temp):
+        if self.temperature_scale == 'C':
+            return round(temp * 2) / 2
+        else:
+            # F goes to nearest degree
+            return int(round(temp))
+
     @property
     def temperature_scale(self):
         return self._device['temperature_scale']
@@ -458,10 +465,14 @@ class Device(NestBase):
         data = {}
 
         if self.mode == 'heat-cool':
-            data[self._temp_key('target_temperature_low')] = value[0]
-            data[self._temp_key('target_temperature_high')] = value[1]
+            rounded_low = self._round_temp(value[0])
+            rounded_high = self._round_temp(value[1])
+
+            data[self._temp_key('target_temperature_low')] = rounded_low
+            data[self._temp_key('target_temperature_high')] = rounded_high
         else:
-            data[self._temp_key('target_temperature')] = value
+            rounded_temp = self._round_temp(value)
+            data[self._temp_key('target_temperature')] = rounded_temp
 
         self._set('devices/thermostats', data)
 
