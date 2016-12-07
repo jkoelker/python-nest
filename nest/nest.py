@@ -538,6 +538,10 @@ class Device(NestBase):
         return self._device['hot_water_temperature']
 
     @property
+    def hvac_state(self):
+        return self._device['hvac_state']
+
+    @property
     def eco(self):
         raise NotImplementedError("Deprecated Nest API")
         # eco_mode = self._device['eco']['mode']
