@@ -1029,7 +1029,7 @@ class CameraDevice(NestBase):
         return [ActivityZone(self.serial,
                              self._nest_api,
                              self._local_time, z['id'])
-                for z in self._device['activity_zones']]
+                for z in self._device.get('activity_zones', [])]
 
     @property
     def last_event(self):
