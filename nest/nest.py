@@ -1275,7 +1275,7 @@ class Structure(NestBase):
 
     @property
     def country_code(self):
-        return self._structure['country_code']
+        return self._structure.get('country_code')
 
     @property
     def devices(self):
