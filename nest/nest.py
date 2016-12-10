@@ -1356,7 +1356,8 @@ class Structure(NestBase):
 
     @property
     def location(self):
-        return self._structure.get('location')
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure.get('location')
 
     @property
     def address(self):
@@ -1365,8 +1366,15 @@ class Structure(NestBase):
 
     @property
     def num_thermostats(self):
-        raise NotImplementedError("Deprecated Nest API")
-        # return self._structure['num_thermostats']
+        if THERMOSTATS in self._structure:
+            return len(self._structure[THERMOSTATS])
+        else:
+            return 0
+
+    @property
+    def measurement_scale(self):
+        raise NotImplementedError("Deprecated Nest API, see temperature_scale on thermostats instead")
+        # return self._structure['measurement_scale']
 
     @property
     def postal_code(self):
@@ -1386,6 +1394,21 @@ class Structure(NestBase):
     @property
     def time_zone(self):
         return self._structure['time_zone']
+
+    @property
+    def peak_period_start_time(self):
+        if 'peak_period_start_time' in self._structure:
+            return parse_time(self._structure['peak_period_start_time'])
+
+    @property
+    def peak_period_end_time(self):
+        if 'peak_period_end_time' in self._structure:
+            return parse_time(self._structure['peak_period_end_time'])
+
+    @property
+    def eta_begin(self):
+        if 'eta_begin' in self._structure:
+            return parse_time(self._structure['eta_begin'])
 
     @property
     def wheres(self):
