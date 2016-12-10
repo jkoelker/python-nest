@@ -1306,35 +1306,45 @@ class Structure(NestBase):
 
     @property
     def dr_reminder_enabled(self):
-        return self._structure['dr_reminder_enabled']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['dr_reminder_enabled']
 
     @property
     def emergency_contact_description(self):
-        return self._structure['emergency_contact_description']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['emergency_contact_description']
 
     @property
     def emergency_contact_type(self):
-        return self._structure['emergency_contact_type']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['emergency_contact_type']
 
     @property
     def emergency_contact_phone(self):
-        return self._structure['emergency_contact_phone']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['emergency_contact_phone']
 
     @property
     def enhanced_auto_away_enabled(self):
-        return self._structure['topaz_enhanced_auto_away_enabled']
+        # FIXME there is probably an equivilant thing for this
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['topaz_enhanced_auto_away_enabled']
 
     @property
     def eta_preconditioning_active(self):
-        return self._structure['eta_preconditioning_active']
+        # FIXME there is probably an equivilant thing for this, or something that can be recommended
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['eta_preconditioning_active']
 
     @property
     def house_type(self):
-        return self._structure['house_type']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['house_type']
 
     @property
     def hvac_safety_shutoff_enabled(self):
-        return self._structure['hvac_safety_shutoff_enabled']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['hvac_safety_shutoff_enabled']
 
     @property
     def name(self):
@@ -1350,11 +1360,13 @@ class Structure(NestBase):
 
     @property
     def address(self):
-        return self._structure.get('street_address')
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure.get('street_address')
 
     @property
     def num_thermostats(self):
-        return self._structure['num_thermostats']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['num_thermostats']
 
     @property
     def postal_code(self):
@@ -1363,11 +1375,13 @@ class Structure(NestBase):
 
     @property
     def renovation_date(self):
-        return self._structure['renovation_date']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['renovation_date']
 
     @property
     def structure_area(self):
-        return self._structure['structure_area']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['structure_area']
 
     @property
     def time_zone(self):
@@ -1519,17 +1533,17 @@ class Nest(object):
     @property
     def devices(self):
         return [Device(devid, self, self._local_time)
-                for devid in self._devices[THERMOSTATS]]
+                for devid in self._devices.get(THERMOSTATS, [])]
 
     @property
     def protectdevices(self):
         return [ProtectDevice(topazid, self, self._local_time)
-                for topazid in self._devices[SMOKE_CO_ALARMS]]
+                for topazid in self._devices.get(SMOKE_CO_ALARMS, [])]
 
     @property
     def cameradevices(self):
         return [CameraDevice(topazid, self, self._local_time)
-                for topazid in self._devices[CAMERAS]]
+                for topazid in self._devices.get(CAMERAS, [])]
 
     @property
     def structures(self):
