@@ -13,6 +13,38 @@ Installation
 
     [sudo] pip install python-nest
 
+Nest Developer Account
+=======================
+
+
+You will a Nest developer account, and a Product on the Nest developer portal to use this module:
+
+1. Visit `Nest Developers <https://developers.nest.com/>`_, and sign in. Create an account if you don't have one already.
+
+2. Fill in account details:
+
+  - The "Company Information" can be anything.
+
+3. Submit changes.
+
+4. Click "`Products <https://developers.nest.com/products>`_" at top of page.
+
+5. Click "`Create New Product <https://developers.nest.com/products/new>`_"
+
+6. Fill in details:
+
+  - Product name must be unique.
+
+  - The description, users, urls can all be anything you want.
+
+7. For permissions, check every box and if it's an option select the read/write option.
+
+  - The description requires a specific format to be accepted.
+
+8. Click "Create Product".
+
+9. Once the new product page opens the "Product ID" and "Product Secret" are located on the right side. These will be used as client_id and client_secret below.
+
 
 Usage
 =====
@@ -26,10 +58,16 @@ You can import the module as `nest`.
 
     import nest
 
-    username = 'joe@user.com'
-    password = 'swordfish'
+    client_id = 'XXXXXXXXXXXXXXX'
+    client_secret = 'XXXXXXXXXXXXXXX'
+    access_token_cache_file = 'nest.json'
 
-    napi = nest.Nest(username, password)
+    nest = nest.Nest(client_id=client_id, client_secret=client_secret, access_token_cache_file=access_token_cache_file)
+
+    if nest.access_token is None:
+        print('Go to ' + nest.authorize_url + ' to authorize, then enter PIN below')
+        pin = input("PIN: ")
+        nest.request_token(pin)
 
     for structure in napi.structures:
         print 'Structure %s' % structure.name
@@ -90,46 +128,9 @@ You can import the module as `nest`.
             print '            battery_level         : %s' % device.battery_level
 
     # The Nest object can also be used as a context manager
-    with nest.Nest(username, password) as napi:
+    with nest.Nest(client_id=client_id, client_secret=client_secret, access_token_cache_file=access_token_cache_file) as napi:
         for device in napi.devices:
             device.temperature = 23
-
-    # Weather data is also available under structure or device
-    # The api is the same from either
-
-    structure = napi.structures[0]
-    time_str = structure.weather.current.datetime.strftime('%Y-%m-%d %H:%M:%S')
-    print 'Current Weather at %s:' % time_str
-    print '    Condition: %s' % structure.weather.current.condition
-    print '    Temperature: %s' % structure.weather.current.temperature
-    print '    Humidity: %s' % structure.weather.current.humidity
-    print '    Wind Dir: %s' % structure.weather.current.wind.direction
-    print '    Wind Azimuth: %s' % structure.weather.current.wind.azimuth
-    print '    Wind Speed: %s' % structure.weather.current.wind.kph
-
-    # NOTE: Hourly forecasts do not contain a "contidion" its value is `None`
-    #       Wind Speed is likwise `None` as its generally not reported
-    print 'Hourly Forcast:'
-    for f in structure.weather.hourly:
-        print '    %s:' % f.datetime.strftime('%Y-%m-%d %H:%M:%S')
-        print '        Temperature: %s' % f.temperature
-        print '        Humidity: %s' % f.humidity
-        print '        Wind Dir: %s' % f.wind.direction
-        print '        Wind Azimuth: %s' % f.wind.azimuth
-
-
-    # NOTE: Daily forecasts temperature is a tuple of (low, high)
-    print 'Daily Forcast:'
-    for f in structure.weather.daily:
-        print '    %s:' % f.datetime.strftime('%Y-%m-%d %H:%M:%S')
-        print '    Condition: %s' % structure.weather.current.condition
-        print '        Low: %s' % f.temperature[0]
-        print '        High: %s' % f.temperature[1]
-        print '        Humidity: %s' % f.humidity
-        print '        Wind Dir: %s' % f.wind.direction
-        print '        Wind Azimuth: %s' % f.wind.azimuth
-        print '        Wind Speed: %s' % structure.weather.current.wind.kph
-
 
     # NOTE: By default all datetime objects are timezone unaware (UTC)
     #       By passing `local_time=True` to the `Nest` object datetime objects
@@ -140,9 +141,9 @@ You can import the module as `nest`.
     print napi.structures[0].weather.current.datetime.tzinfo
 
 
-In the API all temperature values are in degrees celsius. Helper functions
-for conversion are in the `utils` module:
 
+FIXME In the API, temperatures are in  all temperature values are in degrees celsius. Helper functions
+for conversion are in the `utils` module:
 
 .. code-block:: python
 
@@ -154,7 +155,6 @@ for conversion are in the `utils` module:
 
 The utils function use `decimal.Decimal` to ensure precision.
 
-For "advanced" usage such as token caching, use the source, luke!
 
 Command line
 ------------
