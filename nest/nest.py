@@ -15,11 +15,6 @@ from requests import auth
 from requests import adapters
 from requests.compat import json
 
-try:
-    import pytz
-except ImportError:
-    pytz = None
-
 ACCESS_TOKEN_URL = 'https://api.home.nest.com/oauth2/access_token'
 AUTHORIZE_URL = 'https://home.nest.com/login/oauth2?client_id={0}&state={1}'
 API_URL = 'https://developer-api.nest.com'
@@ -1393,7 +1388,8 @@ class Structure(NestBase):
 
     @property
     def time_zone(self):
-        return self._structure['time_zone']
+        if 'time_zone' in self._structure:
+            return self._structure['time_zone']
 
     @property
     def peak_period_start_time(self):
