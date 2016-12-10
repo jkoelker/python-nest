@@ -145,10 +145,9 @@ class NestAuth(auth.AuthBase):
 
 
 class NestBase(object):
-    def __init__(self, serial, nest_api, local_time=False):
+    def __init__(self, serial, nest_api):
         self._serial = serial
         self._nest_api = nest_api
-        self._local_time = local_time
 
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, self._repr_name)
@@ -227,7 +226,7 @@ class Device(NestBase):
     @property
     def structure(self):
         return Structure(self._device['structure_id'],
-                         self._nest_api, self._local_time)
+                         self._nest_api)
 
     #  FIXME duplication with protect & camera where
     @property
@@ -570,7 +569,7 @@ class ProtectDevice(NestBase):
     @property
     def structure(self):
         return Structure(self._device['structure_id'],
-                         self._nest_api, self._local_time)
+                         self._nest_api)
 
     @property
     def where(self):
@@ -859,8 +858,8 @@ class ProtectDevice(NestBase):
 
 
 class ActivityZone(NestBase):
-    def __init__(self, serial, nest_api, local_time, zone_id):
-        NestBase.__init__(self, serial, nest_api, local_time)
+    def __init__(self, serial, nest_api, zone_id):
+        NestBase.__init__(self, serial, nest_api)
         # camera's activity_zone dict has int, but an event's list of
         # activity_zone ids is strings `\/0_0\/`
         self._zone_id = int(zone_id)
@@ -889,8 +888,8 @@ class ActivityZone(NestBase):
 
 
 class CameraEvent(NestBase):
-    def __init__(self, camera_serial, nest_api, local_time):
-        NestBase.__init__(self, camera_serial, nest_api, local_time)
+    def __init__(self, camera_serial, nest_api):
+        NestBase.__init__(self, camera_serial, nest_api)
 
     @property
     def _camera(self):
@@ -913,7 +912,7 @@ class CameraEvent(NestBase):
         if 'activity_zone_ids' in self._event:
             return [ActivityZone(self.serial,
                                  self._nest_api,
-                                 self._local_time, z)
+                                 z)
                     for z in self._event['activity_zone_ids']]
 
     @property
@@ -1027,13 +1026,13 @@ class CameraDevice(NestBase):
     def activity_zones(self):
         return [ActivityZone(self.serial,
                              self._nest_api,
-                             self._local_time, z['id'])
+                             z['id'])
                 for z in self._device.get('activity_zones', [])]
 
     @property
     def last_event(self):
         if 'last_event' in self._device:
-            return CameraEvent(self.serial, self._nest_api, self._local_time)
+            return CameraEvent(self.serial, self._nest_api)
 
     @property
     def _repr_name(self):
@@ -1045,7 +1044,7 @@ class CameraDevice(NestBase):
     @property
     def structure(self):
         return Structure(self._device['structure_id'],
-                         self._nest_api, self._local_time)
+                         self._nest_api)
 
     @property
     def is_online(self):
@@ -1275,8 +1274,7 @@ class Structure(NestBase):
     @property
     def devices(self):
         if THERMOSTATS in self._structure:
-            return [Device(devid, self._nest_api,
-                           self._local_time)
+            return [Device(devid, self._nest_api)
                     for devid in self._structure[THERMOSTATS]]
         else:
             return []
@@ -1284,8 +1282,7 @@ class Structure(NestBase):
     @property
     def protectdevices(self):
         if SMOKE_CO_ALARMS in self._structure:
-            return [ProtectDevice(topazid, self._nest_api,
-                                  self._local_time)
+            return [ProtectDevice(topazid, self._nest_api)
                     for topazid in self._structure[SMOKE_CO_ALARMS]]
         else:
             return []
@@ -1293,8 +1290,7 @@ class Structure(NestBase):
     @property
     def cameradevices(self):
         if CAMERAS in self._structure:
-            return [CameraDevice(devid, self._nest_api,
-                                 self._local_time)
+            return [CameraDevice(devid, self._nest_api)
                     for devid in self._structure[CAMERAS]]
         else:
             return []
@@ -1450,8 +1446,8 @@ class Nest(object):
     def __init__(self, username=None, password=None, cache_ttl=270,
                  user_agent='Nest/1.1.0.10 CFNetwork/548.0.4',
                  access_token=None, access_token_cache_file=None,
-                 client_id=None, client_secret=None,
-                 local_time=False):
+                 local_time=False,
+                 client_id=None, client_secret=None):
         self._urls = {}
         self._limits = {}
         self._user = None
@@ -1464,7 +1460,8 @@ class Nest(object):
         self._cache_ttl = cache_ttl
         self._cache = (None, 0)
 
-        self._local_time = local_time
+        if local_time:
+            raise ValueError("local_time no longer supported")
 
         def auth_callback(result):
             self._access_token = result['access_token']
@@ -1551,22 +1548,22 @@ class Nest(object):
 
     @property
     def devices(self):
-        return [Device(devid, self, self._local_time)
+        return [Device(devid, self)
                 for devid in self._devices.get(THERMOSTATS, [])]
 
     @property
     def protectdevices(self):
-        return [ProtectDevice(topazid, self, self._local_time)
+        return [ProtectDevice(topazid, self)
                 for topazid in self._devices.get(SMOKE_CO_ALARMS, [])]
 
     @property
     def cameradevices(self):
-        return [CameraDevice(topazid, self, self._local_time)
+        return [CameraDevice(topazid, self)
                 for topazid in self._devices.get(CAMERAS, [])]
 
     @property
     def structures(self):
-        return [Structure(stid, self, self._local_time)
+        return [Structure(stid, self)
                 for stid in self._status[STRUCTURES]]
 
     @property
