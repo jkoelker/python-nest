@@ -177,20 +177,25 @@ class NestBase(object):
 
     @property
     def name(self):
-        return self._device['name']
+        return self._device.get('name')
 
     @property
     def name_long(self):
-        return self._device['name_long']
+        return self._device.get('name_long')
 
     @name.setter
     def name(self, value):
         raise NotImplementedError("Needs updating with new API")
-        self._set('shared', {'name': value})
+        #self._set('shared', {'name': value})
 
     @property
-    def online(self):
-        return self._device['is_online']
+    def _repr_name(self):
+        return self.name
+
+class Device(NestBase):
+    @property
+    def _device(self):
+        raise NotImplementedError("Implemented by sublass")
 
     @property
     def _devices(self):
@@ -198,10 +203,46 @@ class NestBase(object):
 
     @property
     def _repr_name(self):
-        return self.name
+        if self.name:
+            return self.name
+
+        return self.where
+
+    @property
+    def online(self):
+        return self._device.get('is_online')
 
 
-class Device(NestBase):
+    @property
+    def structure(self):
+        return Structure(self._device['structure_id'],
+                         self._nest_api)
+
+    @property
+    def where(self):
+        if self.where_id is not None:
+            return self.structure.wheres[self.where_id]['name']
+
+    @property
+    def where_id(self):
+        return self._device.get('where_id')
+
+    @where.setter
+    def where(self, value):
+        value = value.lower()
+        ident = self.structure.wheres.get(value)
+
+        if ident is None:
+            self.structure.add_where(value)
+            ident = self.structure.wheres[value]
+
+        self._set('device', {'where_id': ident})
+
+    @property
+    def description(self):
+        return self._device['name_long']
+
+class Thermostat(Device):
     @property
     def _device(self):
         return self._devices[THERMOSTATS][self._serial]
@@ -217,38 +258,9 @@ class Device(NestBase):
         # return self._nest_api._status['track'][self._serial]
 
     @property
-    def _repr_name(self):
-        if self.name:
-            return self.name
-
-        return self.where
-
-    @property
-    def structure(self):
-        return Structure(self._device['structure_id'],
-                         self._nest_api)
-
-    #  FIXME duplication with protect & camera where
-    @property
-    def where(self):
-        if 'where_id' in self._device:
-            return self.structure.wheres[self._device['where_id']]['name']
-
-    @where.setter
-    def where(self, value):
-        value = value.lower()
-        ident = self.structure.wheres.get(value)
-
-        if ident is None:
-            self.structure.add_where(value)
-            ident = self.structure.wheres[value]
-
-        self._set('device', {'where_id': ident})
-
-    @property
     def fan(self):
         # FIXME confirm this is the same as old havac_fan_state
-        return self._device['fan_timer_active']
+        return self._device.get('fan_timer_active')
 
     @fan.setter
     def fan(self, value):
@@ -260,7 +272,7 @@ class Device(NestBase):
 
     @property
     def humidity(self):
-        return self._device['humidity']
+        return self._device.get('humidity')
 
     @property
     def target_humidity(self):
@@ -297,7 +309,7 @@ class Device(NestBase):
     @property
     def mode(self):
         # FIXME confirm same as target_temperature_type
-        return self._device['hvac_mode']
+        return self._device.get('hvac_mode')
 
     @mode.setter
     def mode(self, value):
@@ -305,7 +317,7 @@ class Device(NestBase):
 
     @property
     def has_leaf(self):
-        return self._device['has_leaf']
+        return self._device.get('has_leaf')
 
     @property
     def hvac_ac_state(self):
@@ -356,7 +368,7 @@ class Device(NestBase):
 
     @property
     def is_using_emergency_heat(self):
-        return self._device['is_using_emergency_heat']
+        return self._device.get('is_using_emergency_heat')
 
     @property
     def local_ip(self):
@@ -409,17 +421,17 @@ class Device(NestBase):
 
     @property
     def is_locked(self):
-        return self._device['is_locked']
+        return self._device.get('is_locked')
 
     @property
     def locked_temperature(self):
-        low = self._device[self._temp_key('locked_temp_min')]
-        high = self._device[self._temp_key('locked_temp_max')]
+        low = self._device.get(self._temp_key('locked_temp_min'))
+        high = self._device.get(self._temp_key('locked_temp_max'))
         return LowHighTuple(low, high)
 
     @property
     def temperature(self):
-        return self._device[self._temp_key('ambient_temperature')]
+        return self._device.get(self._temp_key('ambient_temperature'))
 
     @property
     def min_temperature(self):
@@ -505,35 +517,35 @@ class Device(NestBase):
 
     @property
     def can_heat(self):
-        return self._device['can_heat']
+        return self._device.get('can_heat')
 
     @property
     def can_cool(self):
-        return self._device['can_cool']
+        return self._device.get('can_cool')
 
     @property
     def has_humidifier(self):
-        return self._device['has_humidifier']
+        return self._device.get('has_humidifier')
 
     @property
     def has_dehumidifier(self):
-        return self._device['has_dehumidifier']
+        return self._device.get('has_dehumidifier')
 
     @property
     def has_fan(self):
-        return self._device['has_fan']
+        return self._device.get('has_fan')
 
     @property
     def has_hot_water_control(self):
-        return self._device['has_hot_water_control']
+        return self._device.get('has_hot_water_control')
 
     @property
     def hot_water_temperature(self):
-        return self._device['hot_water_temperature']
+        return self._device.get('hot_water_temperature')
 
     @property
     def hvac_state(self):
-        return self._device['hvac_state']
+        return self._device.get('hvac_state')
 
     @property
     def eco(self):
@@ -554,27 +566,10 @@ class Device(NestBase):
         # self._set('device', data)
 
 
-class ProtectDevice(NestBase):
+class SmokeCoAlarm(Device):
     @property
     def _device(self):
         return self._devices[SMOKE_CO_ALARMS][self._serial]
-
-    @property
-    def _repr_name(self):
-        if self.name:
-            return self.name
-
-        return self.where
-
-    @property
-    def structure(self):
-        return Structure(self._device['structure_id'],
-                         self._nest_api)
-
-    @property
-    def where(self):
-        if 'where_id' in self._device:
-            return self.structure.wheres[self._device['where_id']]['name']
 
     @property
     def auto_away(self):
@@ -629,7 +624,8 @@ class ProtectDevice(NestBase):
 
     @property
     def co_status(self):
-        return self._device['co_alarm_state']
+        # TODO deprecate for new name
+        return self._device.get('co_alarm_state')
 
     @property
     def component_als_test_passed(self):
@@ -685,10 +681,6 @@ class ProtectDevice(NestBase):
     def creation_time(self):
         raise NotImplementedError("No longer available in Nest API")
         # return self._device['creation_time']
-
-    @property
-    def description(self):
-        return self._device['name_long']
 
     @property
     def device_external_color(self):
@@ -762,8 +754,13 @@ class ProtectDevice(NestBase):
 
     @property
     def latest_manual_test_start_utc_secs(self):
-        # TODO confirm units
-        return self._device['last_manual_test_time']
+        # TODO confirm units, deprecate for new method name
+        return self._device.get('last_manual_test_time')
+
+    @property
+    def last_manual_test_time(self):
+        # TODO parse time, check that it's in the dict
+        return self._device.get('last_manual_test_time')
 
     @property
     def line_power_present(self):
@@ -788,7 +785,7 @@ class ProtectDevice(NestBase):
 
     @property
     def product_id(self):
-        return self._device['product_id']
+        return self._device.get('product_id')
 
     @property
     def replace_by_date_utc_secs(self):
@@ -827,9 +824,6 @@ class ProtectDevice(NestBase):
         raise NotImplementedError("No longer available in Nest API")
         # return self._device['thread_mac_address']
 
-    @property
-    def where_id(self):
-        return self._device['where_id']
 
     @property
     def wifi_ip_address(self):
@@ -858,19 +852,20 @@ class ProtectDevice(NestBase):
 
 
 class ActivityZone(NestBase):
-    def __init__(self, serial, nest_api, zone_id):
-        NestBase.__init__(self, serial, nest_api)
+    def __init__(self, camera, zone_id):
+        self.camera = camera
+        NestBase.__init__(self, camera.serial, camera._nest_api)
         # camera's activity_zone dict has int, but an event's list of
         # activity_zone ids is strings `\/0_0\/`
         self._zone_id = int(zone_id)
 
     @property
-    def _repr_name(self):
-        return self.name
+    def _camera(self):
+        return self.camera._device
 
     @property
-    def _camera(self):
-        return self._devices[CAMERAS][self._serial]
+    def _repr_name(self):
+        return self.name
 
     @property
     def _activity_zone(self):
@@ -888,16 +883,17 @@ class ActivityZone(NestBase):
 
 
 class CameraEvent(NestBase):
-    def __init__(self, camera_serial, nest_api):
-        NestBase.__init__(self, camera_serial, nest_api)
+    def __init__(self, camera):
+        NestBase.__init__(self, camera.serial, camera._nest_api)
+        self.camera = camera
 
     @property
     def _camera(self):
-        return self._devices[CAMERAS][self._serial]
-
+        return self.camera._device
+    
     @property
     def _event(self):
-        return self._camera['last_event']
+        return self._camera.get('last_event')
 
     def __repr__(self):
         return '<%s>' % (self.__class__.__name__)
@@ -910,34 +906,32 @@ class CameraEvent(NestBase):
     @property
     def activity_zones(self):
         if 'activity_zone_ids' in self._event:
-            return [ActivityZone(self.serial,
-                                 self._nest_api,
-                                 z)
+            return [ActivityZone(self, z)
                     for z in self._event['activity_zone_ids']]
 
     @property
     def animated_image_url(self):
-        return self._event['animated_image_url']
+        return self._event.get('animated_image_url')
 
     @property
     def app_url(self):
-        return self._event['app_url']
+        return self._event.get('app_url')
 
     @property
     def has_motion(self):
-        return self._event['has_motion']
+        return self._event.get('has_motion')
 
     @property
     def has_person(self):
-        return self._event['has_person']
+        return self._event.get('has_person')
 
     @property
     def has_sound(self):
-        return self._event['has_sound']
+        return self._event.get('has_sound')
 
     @property
     def image_url(self):
-        return self._event['image_url']
+        return self._event.get('image_url')
 
     @property
     def start_time(self):
@@ -956,7 +950,7 @@ class CameraEvent(NestBase):
 
     @property
     def web_url(self):
-        return self._event['web_url']
+        return self._event.get('web_url')
 
     @property
     def is_ongoing(self):
@@ -989,7 +983,7 @@ class CameraEvent(NestBase):
             return self.has_person
 
 
-class CameraDevice(NestBase):
+class Camera(Device):
     @property
     def _device(self):
         return self._devices[CAMERAS][self._serial]
@@ -1024,52 +1018,29 @@ class CameraDevice(NestBase):
 
     @property
     def activity_zones(self):
-        return [ActivityZone(self.serial,
-                             self._nest_api,
-                             z['id'])
+        return [ActivityZone(self, z['id'])
                 for z in self._device.get('activity_zones', [])]
 
     @property
     def last_event(self):
         if 'last_event' in self._device:
-            return CameraEvent(self.serial, self._nest_api)
-
-    @property
-    def _repr_name(self):
-        if self.name:
-            return self.name
-
-        return self.where
-
-    @property
-    def structure(self):
-        return Structure(self._device['structure_id'],
-                         self._nest_api)
-
-    @property
-    def is_online(self):
-        return self._device['is_online']
+            return CameraEvent(self)
 
     @property
     def is_streaming(self):
-        return self._device['is_streaming']
+        return self._device.get('is_streaming')
 
     @property
     def is_video_history_enabled(self):
-        return self._device['is_video_history_enabled']
-
-    @property
-    def where(self):
-        if 'where_id' in self._device:
-            return self.structure.wheres[self._device['where_id']]['name']
+        return self._device.get('is_video_history_enabled')
 
     @property
     def is_audio_enabled(self):
-        return self._device['is_audio_input_enabled']
+        return self._device.get('is_audio_input_enabled')
 
     @property
     def is_public_share_enabled(self):
-        return self._device['is_public_share_enabled']
+        return self._device.get('is_public_share_enabled')
 
     @property
     def capabilities(self):
@@ -1080,10 +1051,6 @@ class CameraDevice(NestBase):
     def cvr(self):
         raise NotImplementedError("No longer available in Nest API")
         # return self._device['cvr_enrolled']
-
-    @property
-    def description(self):
-        return self._device['name_long']
 
     @property
     def nexustalk_host(self):
@@ -1273,24 +1240,36 @@ class Structure(NestBase):
 
     @property
     def devices(self):
+        raise NotImplementedError("Use thermostats instead")
+
+    @property
+    def thermostats(self):
         if THERMOSTATS in self._structure:
-            return [Device(devid, self._nest_api)
+            return [Thermostat(devid, self._nest_api)
                     for devid in self._structure[THERMOSTATS]]
         else:
             return []
 
     @property
     def protectdevices(self):
+        raise NotImplementedError("Use smoke_co_alarms instead")
+
+    @property
+    def smoke_co_alarms(self):
         if SMOKE_CO_ALARMS in self._structure:
-            return [ProtectDevice(topazid, self._nest_api)
-                    for topazid in self._structure[SMOKE_CO_ALARMS]]
+            return [SmokeCoAlarm(devid, self._nest_api)
+                    for devid in self._structure[SMOKE_CO_ALARMS]]
         else:
             return []
 
     @property
     def cameradevices(self):
+        raise NotImplementedError("Use cameras instead")
+
+    @property
+    def cameras(self):
         if CAMERAS in self._structure:
-            return [CameraDevice(devid, self._nest_api)
+            return [Camera(devid, self._nest_api)
                     for devid in self._structure[CAMERAS]]
         else:
             return []
@@ -1548,16 +1527,28 @@ class Nest(object):
 
     @property
     def devices(self):
+        raise NotImplementedError("Use thermostats instead")
+
+    @property
+    def thermostats(self):
         return [Device(devid, self)
                 for devid in self._devices.get(THERMOSTATS, [])]
 
     @property
     def protectdevices(self):
+        raise NotImplementedError("Use smoke_co_alarms instead")
+
+    @property
+    def smoke_co_alarms(self):
         return [ProtectDevice(topazid, self)
                 for topazid in self._devices.get(SMOKE_CO_ALARMS, [])]
 
     @property
     def cameradevices(self):
+        raise NotImplementedError("Use cameras instead")
+
+    @property
+    def cameras(self):
         return [CameraDevice(topazid, self)
                 for topazid in self._devices.get(CAMERAS, [])]
 
