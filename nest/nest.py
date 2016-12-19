@@ -212,7 +212,6 @@ class Device(NestBase):
     def online(self):
         return self._device.get('is_online')
 
-
     @property
     def structure(self):
         return Structure(self._device['structure_id'],
@@ -242,7 +241,23 @@ class Device(NestBase):
     def description(self):
         return self._device['name_long']
 
+    @property
+    def is_thermostat(self):
+        return False
+
+    @property
+    def is_camera(self):
+        return False
+
+    @property
+    def is_smoke_co_alarm(self):
+        return False
+
 class Thermostat(Device):
+    @property
+    def is_thermostat(self):
+        return True
+
     @property
     def _device(self):
         return self._devices[THERMOSTATS][self._serial]
@@ -567,6 +582,10 @@ class Thermostat(Device):
 
 
 class SmokeCoAlarm(Device):
+    @property
+    def is_smoke_co_alarm(self):
+        return True
+
     @property
     def _device(self):
         return self._devices[SMOKE_CO_ALARMS][self._serial]
@@ -984,6 +1003,10 @@ class CameraEvent(NestBase):
 
 
 class Camera(Device):
+    @property
+    def is_camera(self):
+        return True
+
     @property
     def _device(self):
         return self._devices[CAMERAS][self._serial]
