@@ -597,7 +597,7 @@ class SmokeCoAlarm(Device):
 
     @property
     def battery_health(self):
-        return self._device['battery_health']
+        return self._device.get('battery_health')
 
     @property
     def battery_health_state(self):
