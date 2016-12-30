@@ -132,6 +132,25 @@ You can import the module as `nest`.
         for device in napi.devices:
             device.temperature = 23
 
+    # Nest product's can be updated to include other permissions. Before you
+    # can access with the API, a user has to authorize again. To handle this
+    # and detect when re-authorization is required, pass in a product_version
+    client_id = 'XXXXXXXXXXXXXXX'
+    client_secret = 'XXXXXXXXXXXXXXX'
+    access_token_cache_file = 'nest.json'
+    product_version = 1337
+
+    napi = nest.Nest(client_id=client_id, client_secret=client_secret, access_token_cache_file=access_token_cache_file, product_version=product_version)
+
+    print("Never Authorized: %s" % napi.never_authorized)
+    print("Invalid Token: %s" % napi.invalid_access_token)
+    print("Client Version out of date: %s" % napi.client_version_out_of_date)
+    if napi.authorization_required is None:
+        print('Go to ' + napi.authorize_url + ' to authorize, then enter PIN below')
+        pin = input("PIN: ")
+        napi.request_token(pin)
+
+
     # NOTE: By default all datetime objects are timezone unaware (UTC)
     #       By passing `local_time=True` to the `Nest` object datetime objects
     #       will be converted to the timezone reported by nest. If the `pytz`
@@ -139,6 +158,7 @@ You can import the module as `nest`.
     #       synthesized from the nest data
     napi = nest.Nest(username, password, local_time=True)
     print napi.structures[0].weather.current.datetime.tzinfo
+
 
 
 

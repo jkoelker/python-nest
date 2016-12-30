@@ -1516,7 +1516,11 @@ class Nest(object):
     @property
     def client_version_out_of_date(self):
         if self._product_version is not None:
-            return self.client_version < self._product_version
+            try:
+                return self.client_version < self._product_version
+            # an error means they need to authorize anyways
+            except AuthorizationError:
+                return True
         return False
 
     @property
