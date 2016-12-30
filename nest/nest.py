@@ -186,11 +186,12 @@ class NestBase(object):
     @name.setter
     def name(self, value):
         raise NotImplementedError("Needs updating with new API")
-        #self._set('shared', {'name': value})
+        # self._set('shared', {'name': value})
 
     @property
     def _repr_name(self):
         return self.name
+
 
 class Device(NestBase):
     @property
@@ -252,6 +253,7 @@ class Device(NestBase):
     @property
     def is_smoke_co_alarm(self):
         return False
+
 
 class Thermostat(Device):
     @property
@@ -843,7 +845,6 @@ class SmokeCoAlarm(Device):
         raise NotImplementedError("No longer available in Nest API")
         # return self._device['thread_mac_address']
 
-
     @property
     def wifi_ip_address(self):
         raise NotImplementedError("No longer available in Nest API")
@@ -909,7 +910,7 @@ class CameraEvent(NestBase):
     @property
     def _camera(self):
         return self.camera._device
-    
+
     @property
     def _event(self):
         return self._camera.get('last_event')
@@ -1325,7 +1326,8 @@ class Structure(NestBase):
 
     @property
     def eta_preconditioning_active(self):
-        # FIXME there is probably an equivilant thing for this, or something that can be recommended
+        # FIXME there is probably an equivilant thing for this
+        # or something that can be recommended
         raise NotImplementedError("Deprecated Nest API")
         # return self._structure['eta_preconditioning_active']
 
@@ -1563,8 +1565,8 @@ class Nest(object):
 
     @property
     def smoke_co_alarms(self):
-        return [ProtectDevice(topazid, self)
-                for topazid in self._devices.get(SMOKE_CO_ALARMS, [])]
+        return [SmokeCoAlarm(devid, self)
+                for devid in self._devices.get(SMOKE_CO_ALARMS, [])]
 
     @property
     def cameradevices(self):
@@ -1572,8 +1574,8 @@ class Nest(object):
 
     @property
     def cameras(self):
-        return [CameraDevice(topazid, self)
-                for topazid in self._devices.get(CAMERAS, [])]
+        return [Camera(devid, self)
+                for devid in self._devices.get(CAMERAS, [])]
 
     @property
     def structures(self):
