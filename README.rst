@@ -64,7 +64,7 @@ You can import the module as `nest`.
 
     nest = nest.Nest(client_id=client_id, client_secret=client_secret, access_token_cache_file=access_token_cache_file)
 
-    if nest.access_token is None:
+    if nest.authorization_required is None:
         print('Go to ' + nest.authorize_url + ' to authorize, then enter PIN below')
         pin = input("PIN: ")
         nest.request_token(pin)

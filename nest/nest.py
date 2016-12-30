@@ -46,6 +46,7 @@ FAN_MAP = {'auto on': False,
 LowHighTuple = collections.namedtuple('LowHighTuple', ('low', 'high'))
 
 DEVICES = 'devices'
+METADATA = 'metadata'
 STRUCTURES = 'structures'
 THERMOSTATS = 'thermostats'
 SMOKE_CO_ALARMS = 'smoke_co_alarms'
@@ -61,7 +62,10 @@ MAXIMUM_TEMPERATURE_C = 32
 
 class APIError(Exception):
     def __init__(self, response):
-        message = response.json()['error']
+        if response.content != b'':
+            message = response.json()['error']
+        else:
+            message = "Authorization failed"
         # Call the base class constructor with the parameters it needs
         super(APIError, self).__init__(message)
 
@@ -70,7 +74,10 @@ class APIError(Exception):
 
 class AuthorizationError(Exception):
     def __init__(self, response):
-        message = response.json()['error_description']
+        if response.content != b'':
+            message = response.json().get('error_description', "Authorization Failed")
+        else:
+            message = "Authorization failed"
         # Call the base class constructor with the parameters it needs
         super(AuthorizationError, self).__init__(message)
 
@@ -1450,10 +1457,11 @@ class Structure(NestBase):
 
 class Nest(object):
     def __init__(self, username=None, password=None, cache_ttl=270,
-                 user_agent='Nest/1.1.0.10 CFNetwork/548.0.4',
+                 user_agent=None,
                  access_token=None, access_token_cache_file=None,
                  local_time=False,
-                 client_id=None, client_secret=None):
+                 client_id=None, client_secret=None,
+                 product_version=None):
         self._urls = {}
         self._limits = {}
         self._user = None
@@ -1469,12 +1477,16 @@ class Nest(object):
         if local_time:
             raise ValueError("local_time no longer supported")
 
+        if user_agent:
+            raise ValueError("user_agent no longer supported")
+
         def auth_callback(result):
             self._access_token = result['access_token']
 
         self._access_token = access_token
         self._client_id = client_id
         self._client_secret = client_secret
+        self._product_version = product_version
 
         self._session = requests.Session()
         auth = NestAuth(client_id=self._client_id,
@@ -1482,6 +1494,30 @@ class Nest(object):
                         session=self._session, access_token=access_token,
                         access_token_cache_file=access_token_cache_file)
         self._session.auth = auth
+
+    @property
+    def authorization_required(self):
+        return self.never_authorized or \
+            self.invalid_access_token or \
+            self.client_version_out_of_date
+
+    @property
+    def never_authorized(self):
+        return self.access_token is None
+
+    @property
+    def invalid_access_token(self):
+        try:
+            self._status
+            return False
+        except AuthorizationError:
+            return True
+
+    @property
+    def client_version_out_of_date(self):
+        if self._product_version is not None:
+            return self.client_version < self._product_version
+        return False
 
     @property
     def authorize_url(self):
@@ -1507,6 +1543,9 @@ class Nest(object):
                                          data=data)
         if response.status_code == 200:
             return response.json()
+
+        if response.status_code == 401:
+            raise AuthorizationError(response)
 
         if response.status_code != 307:
             raise APIError(response)
@@ -1544,6 +1583,14 @@ class Nest(object):
             self._cache = (value, now)
 
         return value
+
+    @property
+    def _metadata(self):
+        return self._status[METADATA]
+
+    @property
+    def client_version(self):
+        return self._metadata['client_version']
 
     @property
     def _devices(self):
