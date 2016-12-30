@@ -75,7 +75,9 @@ class APIError(Exception):
 class AuthorizationError(Exception):
     def __init__(self, response):
         if response.content != b'':
-            message = response.json().get('error_description', "Authorization Failed")
+            message = response.json().get(
+                'error_description',
+                "Authorization Failed")
         else:
             message = "Authorization failed"
         # Call the base class constructor with the parameters it needs
@@ -212,7 +214,6 @@ class Device(NestBase):
     def name(self, value):
         raise NotImplementedError("Needs updating with new API")
         # self._set('shared', {'name': value})
-
 
     @property
     def name_long(self):
@@ -1377,7 +1378,9 @@ class Structure(NestBase):
 
     @property
     def measurement_scale(self):
-        raise NotImplementedError("Deprecated Nest API, see temperature_scale on thermostats instead")
+        raise NotImplementedError(
+            "Deprecated Nest API, see temperature_scale on "
+            "thermostats instead")
         # return self._structure['measurement_scale']
 
     @property
