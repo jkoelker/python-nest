@@ -3,12 +3,13 @@
 import collections
 import copy
 import datetime
-from dateutil.parser import parse as parse_time
 import hashlib
 import time
 import os
 import uuid
 import weakref
+
+from dateutil.parser import parse as parse_time
 
 import requests
 from requests import auth
@@ -71,7 +72,7 @@ class AuthorizationError(Exception):
     def __init__(self, response):
         message = response.json()['error_description']
         # Call the base class constructor with the parameters it needs
-        super(APIError, self).__init__(message)
+        super(AuthorizationError, self).__init__(message)
 
         self.response = response
 
@@ -176,21 +177,8 @@ class NestBase(object):
         return self._serial
 
     @property
-    def name(self):
-        return self._device.get('name')
-
-    @property
-    def name_long(self):
-        return self._device.get('name_long')
-
-    @name.setter
-    def name(self, value):
-        raise NotImplementedError("Needs updating with new API")
-        # self._set('shared', {'name': value})
-
-    @property
     def _repr_name(self):
-        return self.name
+        return self.serial
 
 
 class Device(NestBase):
@@ -208,6 +196,20 @@ class Device(NestBase):
             return self.name
 
         return self.where
+
+    @property
+    def name(self):
+        return self._device.get('name')
+
+    @name.setter
+    def name(self, value):
+        raise NotImplementedError("Needs updating with new API")
+        # self._set('shared', {'name': value})
+
+
+    @property
+    def name_long(self):
+        return self._device.get('name_long')
 
     @property
     def online(self):
@@ -419,7 +421,7 @@ class Thermostat(Device):
 
     @property
     def postal_code(self):
-        return self._structure.postal_code
+        return self.structure.postal_code
         # return self._device['postal_code']
 
     def _temp_key(self, key):
@@ -1421,7 +1423,7 @@ class Structure(NestBase):
             return self.wheres[name]
 
         name = ' '.join([n.capitalize() for n in name.split()])
-        wheres = copy.copy(self._wheres)
+        wheres = copy.copy(self.wheres)
 
         if ident is None:
             ident = str(uuid.uuid4())
@@ -1439,7 +1441,7 @@ class Structure(NestBase):
 
         ident = self.wheres[name]
 
-        wheres = [w for w in copy.copy(self._wheres)
+        wheres = [w for w in copy.copy(self.wheres)
                   if w['name'] != name and w['where_id'] != ident]
 
         self.wheres = wheres
@@ -1584,8 +1586,8 @@ class Nest(object):
 
     @property
     def urls(self):
-        return self._session.auth.urls
+        raise NotImplementedError("Deprecated Nest API")
 
     @property
     def user(self):
-        return self._session.auth.user
+        raise NotImplementedError("Deprecated Nest API")
