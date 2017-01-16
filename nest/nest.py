@@ -1612,7 +1612,7 @@ class Nest(object):
 
     @property
     def thermostats(self):
-        return [Device(devid, self)
+        return [Thermostat(devid, self)
                 for devid in self._devices.get(THERMOSTATS, [])]
 
     @property
