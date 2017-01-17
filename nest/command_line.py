@@ -34,9 +34,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description=description,
                                      parents=[conf_parser])
 
-
     parser.add_argument('--token-cache', dest='token_cache',
-                        default=defaults.get('token_cache'),
+                        default=token_cache,
                         help='auth access token cache file',
                         metavar='TOKEN_CACHE_FILE')
 
@@ -122,7 +121,9 @@ def main():
     cmd = args.command
 
     if args.client_id is None or args.client_secret is None:
-        print("Missing client and secret. Either call with --client-id and --client-secret or add to config as client_id and client_secret")
+        print("Missing client and secret. Either call with --client-id "
+              "and --client-secret or add to config as client_id and "
+              "client_secret")
         return
 
     token_cache = os.path.expanduser(args.token_cache)
@@ -132,7 +133,8 @@ def main():
                    access_token_cache_file=token_cache) as napi:
 
         if napi.authorization_required:
-            print('Go to ' + napi.authorize_url + ' to authorize, then enter PIN below')
+            print('Go to ' + napi.authorize_url +
+                  ' to authorize, then enter PIN below')
             pin = input("PIN: ")
             napi.request_token(pin)
 
@@ -243,7 +245,8 @@ def main():
             print('Where: %s' % device.where)
             print('Mode     : %s' % device.mode)
             print('Fan      : %s' % device.fan)
-            print('Temp     : %0.1f%s' % (device.temperature, device.temperature_scale))
+            print('Temp     : %0.1f%s' % (device.temperature,
+                                          device.temperature_scale))
             print('Humidity : %0.1f%%' % device.humidity)
             if isinstance(device.target, tuple):
                 print('Target   : %0.1f-%0.1f%s' % (
@@ -251,7 +254,8 @@ def main():
                     display_temp(device.target[1]),
                     device.temperature_scale))
             else:
-                print('Target   : %0.1f%s' % (display_temp(device.target), device.temperature_scale))
+                print('Target   : %0.1f%s' % (display_temp(device.target),
+                                              device.temperature_scale))
             print('Away Heat: %0.1fC' % device.eco_temperature[0])
             print('Away Cool: %0.1fC' % device.eco_temperature[1])
             print('Has Leaf : %s' % device.has_leaf)
