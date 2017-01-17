@@ -3,97 +3,100 @@
 import collections
 import copy
 import datetime
+import hashlib
 import time
 import os
 import uuid
 import weakref
 
+from dateutil.parser import parse as parse_time
+
 import requests
 from requests import auth
 from requests import adapters
 from requests.compat import json
-from requests import hooks
 
-try:
-    import pytz
-except ImportError:
-    pytz = None
-
-
+ACCESS_TOKEN_URL = 'https://api.home.nest.com/oauth2/access_token'
+AUTHORIZE_URL = 'https://home.nest.com/login/oauth2?client_id={0}&state={1}'
+API_URL = 'https://developer-api.nest.com'
 LOGIN_URL = 'https://home.nest.com/user/login'
-AWAY_MAP = {'on': True,
-            'away': True,
-            'off': False,
-            'home': False,
-            True: True,
-            False: False}
-AZIMUTH_MAP = {'N': 0.0, 'NNE': 22.5, 'NE': 45.0, 'ENE': 67.5, 'E': 90.0,
-               'ESE': 112.5, 'SE': 135.0, 'SSE': 157.5, 'S': 180.0,
-               'SSW': 202.5, 'SW': 225.0, 'WSW': 247.5, 'W': 270.0,
-               'WNW': 292.5, 'NW': 315.0, 'NNW': 337.5}
+SIMULATOR_SNAPSHOT_URL = \
+    'https://developer.nest.com' \
+    '/simulator/api/v1/nest/devices/camera/snapshot'
+SIMULATOR_SNAPSHOT_PLACEHOLDER_URL = \
+    'https://media.giphy.com/media/WCwFvyeb6WJna/giphy.gif'
 
-AZIMUTH_ALIASES = (('North', 'N'),
-                   ('North North East', 'NNE'),
-                   ('North East', 'NE'),
-                   ('North North East', 'NNE'),
-                   ('East', 'E'),
-                   ('East South East', 'ESE'),
-                   ('South East', 'SE'),
-                   ('South South East', 'SSE'),
-                   ('South', 'S'),
-                   ('South South West', 'SSW'),
-                   ('South West', 'SW'),
-                   ('West South West', 'WSW'),
-                   ('West', 'W'),
-                   ('West North West', 'WNW'),
-                   ('North West', 'NW'),
-                   ('North North West', 'NNW'))
+AWAY_MAP = {'on': 'away',
+            'away': 'away',
+            'off': 'home',
+            'home': 'home',
+            True: 'away',
+            False: 'home'}
 
-for (alias, key) in AZIMUTH_ALIASES:
-    AZIMUTH_MAP[alias] = AZIMUTH_MAP[key]
-
-FAN_MAP = {'auto on': 'auto',
-           'on': 'on',
-           'auto': 'auto',
-           'always on': 'on',
-           '1': 'on',
-           '0': 'auto',
-           1: 'on',
-           0: 'auto',
-           True: 'on',
-           False: 'auto'}
-
+FAN_MAP = {'auto on': False,
+           'on': True,
+           'auto': False,
+           '1': True,
+           '0': False,
+           1: True,
+           0: False,
+           True: True,
+           False: False}
 
 LowHighTuple = collections.namedtuple('LowHighTuple', ('low', 'high'))
 
+DEVICES = 'devices'
+METADATA = 'metadata'
+STRUCTURES = 'structures'
+THERMOSTATS = 'thermostats'
+SMOKE_CO_ALARMS = 'smoke_co_alarms'
+CAMERAS = 'cameras'
 
-class NestTZ(datetime.tzinfo):
-    def __init__(self, gmt_offset):
-        self._offset = datetime.timedelta(hours=float(gmt_offset))
-        self._name = gmt_offset
+# https://developers.nest.com/documentation/api-reference/overview#targettemperaturef
+MINIMUM_TEMPERATURE_F = 50
+MAXIMUM_TEMPERATURE_F = 90
+# https://developers.nest.com/documentation/api-reference/overview#targettemperaturec
+MINIMUM_TEMPERATURE_C = 9
+MAXIMUM_TEMPERATURE_C = 32
 
-    def __repr__(self):
-        return '<%s: gmt_offset=%s>' % (self.__class__.__name__,
-                                        self._name)
 
-    def utcoffset(self, dt):
-        return self._offset
+class APIError(Exception):
+    def __init__(self, response):
+        if response.content != b'':
+            message = response.json()['error']
+        else:
+            message = "Authorization failed"
+        # Call the base class constructor with the parameters it needs
+        super(APIError, self).__init__(message)
 
-    def tzname(self, dt):
-        return self._name
+        self.response = response
 
-    def dst(self, dt):
-        return datetime.timedelta(0)
+
+class AuthorizationError(Exception):
+    def __init__(self, response):
+        if response.content != b'':
+            message = response.json().get(
+                'error_description',
+                "Authorization Failed")
+        else:
+            message = "Authorization failed"
+        # Call the base class constructor with the parameters it needs
+        super(AuthorizationError, self).__init__(message)
+
+        self.response = response
 
 
 class NestAuth(auth.AuthBase):
-    def __init__(self, username, password, auth_callback=None, session=None,
+    def __init__(self, auth_callback=None, session=None,
+                 client_id=None, client_secret=None,
                  access_token=None, access_token_cache_file=None):
         self._res = {}
-        self.username = username
-        self.password = password
         self.auth_callback = auth_callback
+        self.pin = None
         self._access_token_cache_file = access_token_cache_file
+        self._client_id = client_id
+        self._client_secret = client_secret
+        self._access_token = access_token
 
         if (access_token_cache_file is not None and
                 access_token is None and
@@ -120,8 +123,11 @@ class NestAuth(auth.AuthBase):
                                                          collections.Callable):
             self.auth_callback(self._res)
 
-    def _login(self, headers=None):
-        data = {'username': self.username, 'password': self.password}
+    def login(self, headers=None):
+        data = {'client_id': self._client_id,
+                'client_secret': self._client_secret,
+                'code': self.pin,
+                'grant_type': 'authorization_code'}
 
         post = requests.post
 
@@ -129,195 +135,69 @@ class NestAuth(auth.AuthBase):
             session = self._session()
             post = session.post
 
-        response = post(LOGIN_URL, data=data, headers=headers)
-        response.raise_for_status()
+        response = post(ACCESS_TOKEN_URL, data=data, headers=headers)
+        if response.status_code != 200:
+            raise AuthorizationError(response)
         self._res = response.json()
 
         self._cache()
         self._callback(self._res)
 
-    def _perhaps_relogin(self, r, **kwargs):
-        if r.status_code == 401:
-            self._login(r.headers.copy())
-            req = r.request.copy()
-            req.hooks = hooks.default_hooks()
-            req.headers['Authorization'] = 'Basic ' + self.access_token
-
-            adapter = self._adapter
-            if self._session:
-                session = self.session()
-                if session:
-                    adapter = session.get_adapter(req.url)
-
-            response = adapter.send(req, **kwargs)
-            response.history.append(r)
-
-            return response
-
-        return r
-
     @property
     def access_token(self):
-        return self._res.get('access_token')
-
-    @property
-    def urls(self):
-        if not self._res.get('urls'):
-            # NOTE(jkoelker) Bootstrap the URLs
-            self._login()
-
-        return self._res.get('urls')
-
-    @property
-    def user(self):
-        return self._res.get('user')
+        return self._res.get('access_token', self._access_token)
 
     def __call__(self, r):
         if self.access_token:
-            r.headers['Authorization'] = 'Basic ' + self.access_token
+            r.headers['Authorization'] = 'Bearer ' + self.access_token
 
-        r.register_hook('response', self._perhaps_relogin)
         return r
 
 
-class Wind(object):
-    def __init__(self, direction=None, kph=None):
-        self.direction = direction
-        self.kph = kph
-
-    @property
-    def azimuth(self):
-        return AZIMUTH_MAP[self.direction]
-
-
-class Forecast(object):
-    def __init__(self, forecast, tz=None):
-        self._forecast = forecast
-        self._tz = tz
-        self.condition = forecast.get('condition')
-        self.humidity = forecast['humidity']
-        self._icon = forecast.get('icon')
-
-        fget = forecast.get
-        self._time = float(fget('observation_time',
-                                fget('time',
-                                     fget('date',
-                                          fget('observation_epoch',
-                                               time.time())))))
-
-    def __repr__(self):
-        return '<%s: %s>' % (self.__class__.__name__,
-                             self.datetime.strftime('%Y-%m-%d %H:%M:%S'))
-
-    @property
-    def datetime(self):
-        return datetime.datetime.fromtimestamp(self._time, self._tz)
-
-    @property
-    def temperature(self):
-        if 'temp_low_c' in self._forecast:
-            return LowHighTuple(self._forecast['temp_low_c'],
-                                self._forecast['temp_high_c'])
-
-        return self._forecast['temp_c']
-
-    @property
-    def wind(self):
-        return Wind(self._forecast['wind_dir'], self._forecast.get('wind_kph'))
-
-
-class Weather(object):
-    def __init__(self, weather, local_time):
-        self._weather = weather
-
-        self._tz = None
-        if local_time:
-            if pytz:
-                self._tz = pytz.timezone(weather['location']['timezone_long'])
-
-            else:
-                self._tz = NestTZ(weather['location']['gmt_offset'])
-
-    @property
-    def _current(self):
-        return self._weather['current']
-
-    @property
-    def _daily(self):
-        return self._weather['forecast']['daily']
-
-    @property
-    def _hourly(self):
-        return self._weather['forecast']['hourly']
-
-    @property
-    def current(self):
-        return Forecast(self._current, self._tz)
-
-    @property
-    def daily(self):
-        return [Forecast(f, self._tz) for f in self._daily]
-
-    @property
-    def hourly(self):
-        return [Forecast(f, self._tz) for f in self._hourly]
-
-
 class NestBase(object):
-    def __init__(self, serial, nest_api, local_time=False):
+    def __init__(self, serial, nest_api):
         self._serial = serial
         self._nest_api = nest_api
-        self._local_time = local_time
 
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, self._repr_name)
 
     def _set(self, what, data):
-        url = '%s/v2/put/%s.%s' % (self._nest_api.urls['transport_url'],
-                                   what, self._serial)
-        response = self._nest_api._session.post(url, data=json.dumps(data))
-        response.raise_for_status()
+        path = '/%s/%s' % (what, self._serial)
 
+        response = self._nest_api._put(path=path, data=data)
         self._nest_api._bust_cache()
+
+        return response
 
     @property
     def _weather(self):
-        merge_code = self.postal_code + ',' + self.country_code
-        return self._nest_api._weather[merge_code]
+        raise NotImplementedError("Deprecated Nest API")
+        # merge_code = self.postal_code + ',' + self.country_code
+        # return self._nest_api._weather[merge_code]
 
     @property
     def weather(self):
-        return Weather(self._weather, self._local_time)
+        raise NotImplementedError("Deprecated Nest API")
+        # return Weather(self._weather, self._local_time)
 
     @property
     def serial(self):
         return self._serial
 
     @property
-    def name(self):
-        return self._serial
-
-    @property
     def _repr_name(self):
-        return self.name
+        return self.serial
 
 
 class Device(NestBase):
     @property
     def _device(self):
-        return self._nest_api._status['device'][self._serial]
+        raise NotImplementedError("Implemented by sublass")
 
     @property
-    def _shared(self):
-        return self._nest_api._status['shared'][self._serial]
-
-    @property
-    def _link(self):
-        return self._nest_api._status['link'][self._serial]
-
-    @property
-    def _track(self):
-        return self._nest_api._status['track'][self._serial]
+    def _devices(self):
+        return self._nest_api._devices
 
     @property
     def _repr_name(self):
@@ -327,14 +207,35 @@ class Device(NestBase):
         return self.where
 
     @property
+    def name(self):
+        return self._device.get('name')
+
+    @name.setter
+    def name(self, value):
+        raise NotImplementedError("Needs updating with new API")
+        # self._set('shared', {'name': value})
+
+    @property
+    def name_long(self):
+        return self._device.get('name_long')
+
+    @property
+    def online(self):
+        return self._device.get('is_online')
+
+    @property
     def structure(self):
-        return Structure(self._link['structure'].split('.')[-1],
-                         self._nest_api, self._local_time)
+        return Structure(self._device['structure_id'],
+                         self._nest_api)
 
     @property
     def where(self):
-        if 'where_id' in self._device:
-            return self.structure.wheres[self._device['where_id']]
+        if self.where_id is not None:
+            return self.structure.wheres[self.where_id]['name']
+
+    @property
+    def where_id(self):
+        return self._device.get('where_id')
 
     @where.setter
     def where(self, value):
@@ -348,130 +249,236 @@ class Device(NestBase):
         self._set('device', {'where_id': ident})
 
     @property
+    def description(self):
+        return self._device['name_long']
+
+    @property
+    def is_thermostat(self):
+        return False
+
+    @property
+    def is_camera(self):
+        return False
+
+    @property
+    def is_smoke_co_alarm(self):
+        return False
+
+
+class Thermostat(Device):
+    @property
+    def is_thermostat(self):
+        return True
+
+    @property
+    def _device(self):
+        return self._devices[THERMOSTATS][self._serial]
+
+    @property
+    def _shared(self):
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._nest_api._status['shared'][self._serial]
+
+    @property
+    def _track(self):
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._nest_api._status['track'][self._serial]
+
+    @property
     def fan(self):
-        return self._shared['hvac_fan_state']
+        # FIXME confirm this is the same as old havac_fan_state
+        return self._device.get('fan_timer_active')
 
     @fan.setter
     def fan(self, value):
-        self._set('device', {'fan_mode': FAN_MAP.get(value, 'auto')})
+        mapped_value = FAN_MAP.get(value, False)
+        if mapped_value is None:
+            raise ValueError("Only True and False supported")
+
+        self._set('device', {'fan_timer_active': mapped_value})
 
     @property
     def humidity(self):
-        return self._device['current_humidity']
+        return self._device.get('humidity')
 
     @property
     def target_humidity(self):
-        return self._device['target_humidity']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['target_humidity']
 
     @target_humidity.setter
     def target_humidity(self, value):
-        if value == 'auto':
+        raise NotImplementedError("No longer available in Nest API")
+    #    if value == 'auto':
 
-            if self._weather['current']['temp_c'] >= 4.44:
-                hum_value = 45
-            elif self._weather['current']['temp_c'] >= -1.11:
-                hum_value = 40
-            elif self._weather['current']['temp_c'] >= -6.67:
-                hum_value = 35
-            elif self._weather['current']['temp_c'] >= -12.22:
-                hum_value = 30
-            elif self._weather['current']['temp_c'] >= -17.78:
-                hum_value = 25
-            elif self._weather['current']['temp_c'] >= -23.33:
-                hum_value = 20
-            elif self._weather['current']['temp_c'] >= -28.89:
-                hum_value = 15
-            elif self._weather['current']['temp_c'] >= -34.44:
-                hum_value = 10
-        else:
-            hum_value = value
+    #        if self._weather['current']['temp_c'] >= 4.44:
+    #            hum_value = 45
+    #        elif self._weather['current']['temp_c'] >= -1.11:
+    #            hum_value = 40
+    #        elif self._weather['current']['temp_c'] >= -6.67:
+    #            hum_value = 35
+    #        elif self._weather['current']['temp_c'] >= -12.22:
+    #            hum_value = 30
+    #        elif self._weather['current']['temp_c'] >= -17.78:
+    #            hum_value = 25
+    #        elif self._weather['current']['temp_c'] >= -23.33:
+    #            hum_value = 20
+    #        elif self._weather['current']['temp_c'] >= -28.89:
+    #            hum_value = 15
+    #        elif self._weather['current']['temp_c'] >= -34.44:
+    #            hum_value = 10
+    #    else:
+    #        hum_value = value
 
-        if float(hum_value) != self._device['target_humidity']:
-            self._set('device', {'target_humidity': float(hum_value)})
+    #    if float(hum_value) != self._device['target_humidity']:
+    #        self._set('device', {'target_humidity': float(hum_value)})
 
     @property
     def mode(self):
-        return self._shared['target_temperature_type']
+        # FIXME confirm same as target_temperature_type
+        return self._device.get('hvac_mode')
 
     @mode.setter
     def mode(self, value):
-        self._set('shared', {'target_temperature_type': value.lower()})
+        self._set('devices/thermostats', {'hvac_mode': value.lower()})
 
     @property
-    def name(self):
-        return self._shared['name']
-
-    @name.setter
-    def name(self, value):
-        self._set('shared', {'name': value})
+    def has_leaf(self):
+        return self._device.get('has_leaf')
 
     @property
     def hvac_ac_state(self):
-        return self._shared['hvac_ac_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_ac_state']
 
     @property
     def hvac_cool_x2_state(self):
-        return self._shared['hvac_cool_x2_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_cool_x2_state']
 
     @property
     def hvac_heater_state(self):
-        return self._shared['hvac_heater_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_heater_state']
 
     @property
     def hvac_aux_heater_state(self):
-        return self._shared['hvac_aux_heater_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_aux_heater_state']
 
     @property
     def hvac_heat_x2_state(self):
-        return self._shared['hvac_heat_x2_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_heat_x2_state']
 
     @property
     def hvac_heat_x3_state(self):
-        return self._shared['hvac_heat_x3_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_heat_x3_state']
 
     @property
     def hvac_alt_heat_state(self):
-        return self._shared['hvac_alt_heat_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_alt_heat_state']
 
     @property
     def hvac_alt_heat_x2_state(self):
-        return self._shared['hvac_alt_heat_x2_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._shared['hvac_alt_heat_x2_state']
 
     @property
     def hvac_emer_heat_state(self):
-        return self._shared['hvac_emer_heat_state']
+        raise NotImplementedError(
+            "No longer available in Nest API. See "
+            "is_using_emergency_heat instead")
+        # return self._shared['hvac_emer_heat_state']
 
     @property
-    def online(self):
-        return self._track['online']
+    def is_using_emergency_heat(self):
+        return self._device.get('is_using_emergency_heat')
 
     @property
     def local_ip(self):
-        return self._device['local_ip']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['local_ip']
 
     @property
     def last_ip(self):
-        return self._track['last_ip']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._track['last_ip']
 
     @property
     def last_connection(self):
-        return self._track['last_connection']
+        # TODO confirm this does get set, or if the API documentation is wrong
+        return self._device.get('last_connection')
 
     @property
     def error_code(self):
-        return self._device['error_code']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['error_code']
 
     @property
     def battery_level(self):
-        return self._device['battery_level']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['battery_level']
+
+    @property
+    def battery_health(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['battery_health']
 
     @property
     def postal_code(self):
-        return self._device['postal_code']
+        return self.structure.postal_code
+        # return self._device['postal_code']
+
+    def _temp_key(self, key):
+        return "%s_%s" % (key, self.temperature_scale.lower())
+
+    def _round_temp(self, temp):
+        if self.temperature_scale == 'C':
+            return round(temp * 2) / 2
+        else:
+            # F goes to nearest degree
+            return int(round(temp))
+
+    @property
+    def temperature_scale(self):
+        return self._device['temperature_scale']
+
+    @property
+    def is_locked(self):
+        return self._device.get('is_locked')
+
+    @property
+    def locked_temperature(self):
+        low = self._device.get(self._temp_key('locked_temp_min'))
+        high = self._device.get(self._temp_key('locked_temp_max'))
+        return LowHighTuple(low, high)
 
     @property
     def temperature(self):
-        return self._shared['current_temperature']
+        return self._device.get(self._temp_key('ambient_temperature'))
+
+    @property
+    def min_temperature(self):
+        if self.is_locked:
+            return self.locked_temperature[0]
+        else:
+            if self.temperature_scale == 'C':
+                return MINIMUM_TEMPERATURE_C
+            else:
+                return MINIMUM_TEMPERATURE_F
+
+    @property
+    def max_temperature(self):
+        if self.is_locked:
+            return self.locked_temperature[1]
+        else:
+            if self.temperature_scale == 'C':
+                return MAXIMUM_TEMPERATURE_C
+            else:
+                return MAXIMUM_TEMPERATURE_F
 
     @temperature.setter
     def temperature(self, value):
@@ -479,290 +486,347 @@ class Device(NestBase):
 
     @property
     def target(self):
-        if self._shared['target_temperature_type'] == 'range':
-            low = self._shared['target_temperature_low']
-            high = self._shared['target_temperature_high']
+        if self.mode == 'heat-cool':
+            low = self._device[self._temp_key('target_temperature_low')]
+            high = self._device[self._temp_key('target_temperature_high')]
             return LowHighTuple(low, high)
 
-        return self._shared['target_temperature']
+        return self._device[self._temp_key('target_temperature')]
 
     @target.setter
     def target(self, value):
-        data = {'target_change_pending': True}
+        data = {}
 
-        if self._shared['target_temperature_type'] == 'range':
-            data['target_temperature_low'] = value[0]
-            data['target_temperature_high'] = value[1]
+        if self.mode == 'heat-cool':
+            rounded_low = self._round_temp(value[0])
+            rounded_high = self._round_temp(value[1])
 
+            data[self._temp_key('target_temperature_low')] = rounded_low
+            data[self._temp_key('target_temperature_high')] = rounded_high
         else:
-            data['target_temperature'] = value
+            rounded_temp = self._round_temp(value)
+            data[self._temp_key('target_temperature')] = rounded_temp
 
-        self._set('shared', data)
+        self._set('devices/thermostats', data)
 
     @property
     def away_temperature(self):
-        low = None
-        high = None
-
-        if self._device['away_temperature_low_enabled']:
-            low = self._device['away_temperature_low']
-
-        if self._device['away_temperature_high_enabled']:
-            high = self._device['away_temperature_high']
-
-        return LowHighTuple(low, high)
+        # see https://nestdevelopers.io/t/new-things-for-fall/226
+        raise NotImplementedError(
+            "Deprecated Nest API, use eco_temperature instead")
 
     @away_temperature.setter
     def away_temperature(self, value):
+        # see https://nestdevelopers.io/t/new-things-for-fall/226
+        raise NotImplementedError(
+                "Deprecated Nest API, use eco_temperature instead")
+
+    @property
+    def eco_temperature(self):
+        # use get, since eco_temperature isn't always filled out
+        low = self._device.get(self._temp_key('eco_temperature_low'))
+        high = self._device.get(self._temp_key('eco_temperature_high'))
+
+        return LowHighTuple(low, high)
+
+    @eco_temperature.setter
+    def eco_temperature(self, value):
         low, high = value
-
         data = {}
-        if low is not None:
-            data['away_temperature_low'] = low
-            data['away_temperature_low_enabled'] = True
 
-        else:
-            data['away_temperature_low_enabled'] = False
+        if low is not None:
+            data[self._temp_key('eco_temperature_low')] = low
 
         if high is not None:
-            data['away_temperature_high'] = high
-            data['away_temperature_high_enabled'] = True
+            data[self._temp_key('eco_temperature_high')] = high
 
-        else:
-            data['away_temperature_high_enabled'] = False
-
-        self._set('device', data)
+        self._set('devices/thermostats', data)
 
     @property
     def can_heat(self):
-        return self._shared['can_heat']
+        return self._device.get('can_heat')
 
     @property
     def can_cool(self):
-        return self._shared['can_cool']
+        return self._device.get('can_cool')
 
     @property
     def has_humidifier(self):
-        return self._device['has_humidifier']
+        return self._device.get('has_humidifier')
 
     @property
     def has_dehumidifier(self):
-        return self._device['has_dehumidifier']
+        return self._device.get('has_dehumidifier')
 
     @property
     def has_fan(self):
-        return self._device['has_fan']
+        return self._device.get('has_fan')
 
     @property
     def has_hot_water_control(self):
-        return self._device['has_hot_water_control']
+        return self._device.get('has_hot_water_control')
 
     @property
     def hot_water_temperature(self):
-        return self._device['hot_water_temperature']
+        return self._device.get('hot_water_temperature')
+
+    @property
+    def hvac_state(self):
+        return self._device.get('hvac_state')
+
+    @property
+    def eco(self):
+        raise NotImplementedError("Deprecated Nest API")
+        # eco_mode = self._device['eco']['mode']
+        # # eco modes can be auto-eco or manual-eco
+        # return eco_mode.endswith('eco')
+
+    @eco.setter
+    def eco(self, value):
+        raise NotImplementedError("Deprecated Nest API")
+        # data = {'eco': self._device['eco']}
+        # if value:
+        #     data['eco']['mode'] = 'manual-eco'
+        # else:
+        #     data['eco']['mode'] = 'schedule'
+        # data['eco']['mode_update_timestamp'] = time.time()
+        # self._set('device', data)
 
 
-class ProtectDevice(NestBase):
+class SmokeCoAlarm(Device):
+    @property
+    def is_smoke_co_alarm(self):
+        return True
+
     @property
     def _device(self):
-        return self._nest_api._status['topaz'][self._serial]
-
-    @property
-    def _repr_name(self):
-        if self.name:
-            return self.name
-
-        return self.where
-
-    @property
-    def structure(self):
-        return Structure(self._device['structure_id'],
-                         self._nest_api, self._local_time)
-
-    @property
-    def where(self):
-        if 'where_id' in self._device:
-            return self.structure.wheres[self._device['where_id']]
+        return self._devices[SMOKE_CO_ALARMS][self._serial]
 
     @property
     def auto_away(self):
-        return self._device['auto_away']
+        raise NotImplementedError("No longer available in Nest API.")
+        # return self._device['auto_away']
+
+    @property
+    def battery_health(self):
+        return self._device.get('battery_health')
 
     @property
     def battery_health_state(self):
-        return self._device['battery_health_state']
+        raise NotImplementedError("use battery_health instead")
 
     @property
     def battery_level(self):
-        return self._device['battery_level']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['battery_level']
 
     @property
     def capability_level(self):
-        return self._device['capability_level']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['capability_level']
 
     @property
     def certification_body(self):
-        return self._device['certification_body']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['certification_body']
 
     @property
     def co_blame_duration(self):
-        if 'co_blame_duration' in self._device:
-            return self._device['co_blame_duration']
+        raise NotImplementedError("No longer available in Nest API")
+        # if 'co_blame_duration' in self._device:
+        #     return self._device['co_blame_duration']
 
     @property
     def co_blame_threshold(self):
-        if 'co_blame_threshold' in self._device:
-            return self._device['co_blame_threshold']
+        raise NotImplementedError("No longer available in Nest API")
+        # if 'co_blame_threshold' in self._device:
+        #     return self._device['co_blame_threshold']
 
     @property
     def co_previous_peak(self):
-        if 'co_previous_peak' in self._device:
-            return self._device['co_previous_peak']
+        raise NotImplementedError("No longer available in Nest API")
+        # if 'co_previous_peak' in self._device:
+        #     return self._device['co_previous_peak']
 
     @property
     def co_sequence_number(self):
-        return self._device['co_sequence_number']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['co_sequence_number']
 
     @property
     def co_status(self):
-        return self._device['co_status']
+        # TODO deprecate for new name
+        return self._device.get('co_alarm_state')
 
     @property
     def component_als_test_passed(self):
-        return self._device['component_als_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_als_test_passed']
 
     @property
     def component_co_test_passed(self):
-        return self._device['component_co_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_co_test_passed']
 
     @property
     def component_heat_test_passed(self):
-        return self._device['component_heat_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_heat_test_passed']
 
     @property
     def component_hum_test_passed(self):
-        return self._device['component_hum_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_hum_test_passed']
 
     @property
     def component_led_test_passed(self):
-        return self._device['component_led_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_led_test_passed']
 
     @property
     def component_pir_test_passed(self):
-        return self._device['component_pir_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_pir_test_passed']
 
     @property
     def component_smoke_test_passed(self):
-        return self._device['component_smoke_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_smoke_test_passed']
 
     @property
     def component_temp_test_passed(self):
-        return self._device['component_temp_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_temp_test_passed']
 
     @property
     def component_us_test_passed(self):
-        return self._device['component_us_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_us_test_passed']
 
     @property
     def component_wifi_test_passed(self):
-        return self._device['component_wifi_test_passed']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_wifi_test_passed']
 
     @property
     def creation_time(self):
-        return self._device['creation_time']
-
-    @property
-    def description(self):
-        return self._device['description']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['creation_time']
 
     @property
     def device_external_color(self):
-        return self._device['device_external_color']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['device_external_color']
 
     @property
     def device_locale(self):
-        return self._device['device_locale']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['device_locale']
 
     @property
     def fabric_id(self):
-        return self._device['fabric_id']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['fabric_id']
 
     @property
     def factory_loaded_languages(self):
-        return self._device['factory_loaded_languages']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['factory_loaded_languages']
 
     @property
     def gesture_hush_enable(self):
-        return self._device['gesture_hush_enable']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['gesture_hush_enable']
 
     @property
     def heads_up_enable(self):
-        return self._device['heads_up_enable']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['heads_up_enable']
 
     @property
     def home_alarm_link_capable(self):
-        return self._device['home_alarm_link_capable']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['home_alarm_link_capable']
 
     @property
     def home_alarm_link_connected(self):
-        return self._device['home_alarm_link_connected']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['home_alarm_link_connected']
 
     @property
     def home_alarm_link_type(self):
-        return self._device['home_alarm_link_type']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['home_alarm_link_type']
 
     @property
     def hushed_state(self):
-        return self._device['hushed_state']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['hushed_state']
 
     @property
     def installed_locale(self):
-        return self._device['installed_locale']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['installed_locale']
 
     @property
     def kl_software_version(self):
-        return self._device['kl_software_version']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['kl_software_version']
 
     @property
     def latest_manual_test_cancelled(self):
-        return self._device['latest_manual_test_cancelled']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['latest_manual_test_cancelled']
 
     @property
     def latest_manual_test_end_utc_secs(self):
-        return self._device['latest_manual_test_end_utc_secs']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['latest_manual_test_end_utc_secs']
 
     @property
     def latest_manual_test_start_utc_secs(self):
-        return self._device['latest_manual_test_start_utc_secs']
+        # TODO confirm units, deprecate for new method name
+        return self._device.get('last_manual_test_time')
+
+    @property
+    def last_manual_test_time(self):
+        # TODO parse time, check that it's in the dict
+        return self._device.get('last_manual_test_time')
 
     @property
     def line_power_present(self):
-        return self._device['line_power_present']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['line_power_present']
 
     @property
     def night_light_continuous(self):
-        if 'night_light_continuous' in self._device:
-            return self._device['night_light_continuous']
+        raise NotImplementedError("No longer available in Nest API")
+        # if 'night_light_continuous' in self._device:
+        #     return self._device['night_light_continuous']
 
     @property
     def night_light_enable(self):
-        return self._device['night_light_enable']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['night_light_enable']
 
     @property
     def ntp_green_led_enable(self):
-        return self._device['ntp_green_led_enable']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['ntp_green_led_enable']
 
     @property
     def product_id(self):
-        return self._device['product_id']
+        return self._device.get('product_id')
 
     @property
     def replace_by_date_utc_secs(self):
-        return self._device['replace_by_date_utc_secs']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['replace_by_date_utc_secs']
 
     @property
     def resource_id(self):
-        return self._device['resource_id']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['resource_id']
 
     @property
     def smoke_sequence_number(self):
@@ -770,7 +834,7 @@ class ProtectDevice(NestBase):
 
     @property
     def smoke_status(self):
-        return self._device['smoke_status']
+        return self._device['smoke_alarm_state']
 
     @property
     def software_version(self):
@@ -778,15 +842,388 @@ class ProtectDevice(NestBase):
 
     @property
     def spoken_where_id(self):
-        return self._device['spoken_where_id']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['spoken_where_id']
 
     @property
     def steam_detection_enable(self):
-        return self._device['steam_detection_enable']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['steam_detection_enable']
 
     @property
     def thread_mac_address(self):
-        return self._device['thread_mac_address']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['thread_mac_address']
+
+    @property
+    def wifi_ip_address(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['wifi_ip_address']
+
+    @property
+    def wifi_mac_address(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['wifi_mac_address']
+
+    @property
+    def wifi_regulatory_domain(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['wifi_regulatory_domain']
+
+    @property
+    def wired_led_enable(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['wired_led_enable']
+
+    @property
+    def wired_or_battery(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['wired_or_battery']
+
+
+class ActivityZone(NestBase):
+    def __init__(self, camera, zone_id):
+        self.camera = camera
+        NestBase.__init__(self, camera.serial, camera._nest_api)
+        # camera's activity_zone dict has int, but an event's list of
+        # activity_zone ids is strings `\/0_0\/`
+        self._zone_id = int(zone_id)
+
+    @property
+    def _camera(self):
+        return self.camera._device
+
+    @property
+    def _repr_name(self):
+        return self.name
+
+    @property
+    def _activity_zone(self):
+        return next(
+            z for z in self._camera['activity_zones']
+            if z['id'] == self.zone_id)
+
+    @property
+    def zone_id(self):
+        return self._zone_id
+
+    @property
+    def name(self):
+        return self._activity_zone['name']
+
+
+class CameraEvent(NestBase):
+    def __init__(self, camera):
+        NestBase.__init__(self, camera.serial, camera._nest_api)
+        self.camera = camera
+
+    @property
+    def _camera(self):
+        return self.camera._device
+
+    @property
+    def _event(self):
+        return self._camera.get('last_event')
+
+    def __repr__(self):
+        return '<%s>' % (self.__class__.__name__)
+
+    def activity_in_zone(self, zone_id):
+        if 'activity_zone_ids' in self._event:
+            return str(zone_id) in self._event['activity_zone_ids']
+        return False
+
+    @property
+    def activity_zones(self):
+        if 'activity_zone_ids' in self._event:
+            return [ActivityZone(self, z)
+                    for z in self._event['activity_zone_ids']]
+
+    @property
+    def animated_image_url(self):
+        return self._event.get('animated_image_url')
+
+    @property
+    def app_url(self):
+        return self._event.get('app_url')
+
+    @property
+    def has_motion(self):
+        return self._event.get('has_motion')
+
+    @property
+    def has_person(self):
+        return self._event.get('has_person')
+
+    @property
+    def has_sound(self):
+        return self._event.get('has_sound')
+
+    @property
+    def image_url(self):
+        return self._event.get('image_url')
+
+    @property
+    def start_time(self):
+        if 'start_time' in self._event:
+            return parse_time(self._event['start_time'])
+
+    @property
+    def end_time(self):
+        if 'end_time' in self._event:
+            return parse_time(self._event['end_time'])
+
+    @property
+    def urls_expire_time(self):
+        if 'urls_expire_time' in self._event:
+            return parse_time(self._event['urls_expire_time'])
+
+    @property
+    def web_url(self):
+        return self._event.get('web_url')
+
+    @property
+    def is_ongoing(self):
+        if self.end_time is not None:
+            # sometimes, existing event is updated with a new start time
+            # that's before the end_time which implies something new
+            if self.start_time > self.end_time:
+                return True
+
+            now = datetime.datetime.now(self.end_time.tzinfo)
+            # end time should be in the past
+            return self.end_time > now
+        # no end_time implies it's ongoing
+        return True
+
+    def has_ongoing_motion_in_zone(self, zone_id):
+        if self.is_ongoing and self.has_motion:
+            return self.activity_in_zone(zone_id)
+
+    def has_ongoing_sound(self):
+        if self.is_ongoing:
+            return self.has_sound
+
+    def has_ongoing_motion(self):
+        if self.is_ongoing:
+            return self.has_motion
+
+    def has_ongoing_person(self):
+        if self.is_ongoing:
+            return self.has_person
+
+
+class Camera(Device):
+    @property
+    def is_camera(self):
+        return True
+
+    @property
+    def _device(self):
+        return self._devices[CAMERAS][self._serial]
+
+    @property
+    def ongoing_event(self):
+        if self.last_event is not None and self.last_event.is_ongoing:
+            return self.last_event
+
+    def has_ongoing_motion_in_zone(self, zone_id):
+        if self.ongoing_event is not None:
+            return self.last_event.has_ongoing_motion_in_zone(zone_id)
+        return False
+
+    @property
+    def sound_detected(self):
+        if self.ongoing_event is not None:
+            return self.last_event.has_ongoing_sound()
+        return False
+
+    @property
+    def motion_detected(self):
+        if self.ongoing_event is not None:
+            return self.last_event.has_ongoing_motion()
+        return False
+
+    @property
+    def person_detected(self):
+        if self.ongoing_event is not None:
+            return self.last_event.has_ongoing_person()
+        return False
+
+    @property
+    def activity_zones(self):
+        return [ActivityZone(self, z['id'])
+                for z in self._device.get('activity_zones', [])]
+
+    @property
+    def last_event(self):
+        if 'last_event' in self._device:
+            return CameraEvent(self)
+
+    @property
+    def is_streaming(self):
+        return self._device.get('is_streaming')
+
+    @property
+    def is_video_history_enabled(self):
+        return self._device.get('is_video_history_enabled')
+
+    @property
+    def is_audio_enabled(self):
+        return self._device.get('is_audio_input_enabled')
+
+    @property
+    def is_public_share_enabled(self):
+        return self._device.get('is_public_share_enabled')
+
+    @property
+    def capabilities(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['capabilities']
+
+    @property
+    def cvr(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['cvr_enrolled']
+
+    @property
+    def nexustalk_host(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['direct_nexustalk_host']
+
+    @property
+    def download_host(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['download_host']
+
+    @property
+    def last_connected(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['last_connected_time']
+
+    @property
+    def last_cuepoint(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['last_cuepoint']
+
+    @property
+    def live_stream(self):
+        # return self._device['live_stream_host']
+        raise NotImplementedError("No longer available in Nest API")
+
+    @property
+    def mac_address(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['mac_address']
+
+    @property
+    def model(self):
+        return self._device['model']
+
+    @property
+    def nexus_api_http_server_url(self):
+        # return self._device['nexus_api_http_server_url']
+        raise NotImplementedError("No longer available in Nest API")
+
+    @property
+    def streaming_state(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['streaming_state']
+
+    @property
+    def component_hum_test_passed(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_hum_test_passed']
+
+    @property
+    def component_led_test_passed(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_led_test_passed']
+
+    @property
+    def component_pir_test_passed(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_pir_test_passed']
+
+    @property
+    def component_smoke_test_passed(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_smoke_test_passed']
+
+    @property
+    def component_temp_test_passed(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_temp_test_passed']
+
+    @property
+    def component_us_test_passed(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_us_test_passed']
+
+    @property
+    def component_wifi_test_passed(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['component_wifi_test_passed']
+
+    @property
+    def creation_time(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['creation_time']
+
+    @property
+    def device_external_color(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['device_external_color']
+
+    @property
+    def device_locale(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['device_locale']
+
+    @property
+    def fabric_id(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['fabric_id']
+
+    @property
+    def factory_loaded_languages(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['factory_loaded_languages']
+
+    @property
+    def installed_locale(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['installed_locale']
+
+    @property
+    def kl_software_version(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['kl_software_version']
+
+    @property
+    def product_id(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['product_id']
+
+    @property
+    def resource_id(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['resource_id']
+
+    @property
+    def software_version(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['software_version']
+
+    @property
+    def spoken_where_id(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['spoken_where_id']
+
+    @property
+    def thread_mac_address(self):
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['thread_mac_address']
 
     @property
     def where_id(self):
@@ -794,34 +1231,34 @@ class ProtectDevice(NestBase):
 
     @property
     def wifi_ip_address(self):
-        return self._device['wifi_ip_address']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['wifi_ip_address']
 
     @property
     def wifi_mac_address(self):
-        return self._device['wifi_mac_address']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['wifi_mac_address']
 
     @property
     def wifi_regulatory_domain(self):
-        return self._device['wifi_regulatory_domain']
+        raise NotImplementedError("No longer available in Nest API")
+        # return self._device['wifi_regulatory_domain']
 
     @property
-    def wired_led_enable(self):
-        return self._device['wired_led_enable']
-
-    @property
-    def wired_or_battery(self):
-        return self._device['wired_or_battery']
+    def snapshot_url(self):
+        if self._device['snapshot_url'] != SIMULATOR_SNAPSHOT_URL:
+            return self._device['snapshot_url']
+        else:
+            return SIMULATOR_SNAPSHOT_PLACEHOLDER_URL
 
 
 class Structure(NestBase):
     @property
     def _structure(self):
-        return self._nest_api._status['structure'][self._serial]
+        return self._nest_api._status[STRUCTURES][self._serial]
 
     def _set_away(self, value, auto_away=False):
-        self._set('structure', {'away': AWAY_MAP[value],
-                                'away_timestamp': int(time.time()),
-                                'away_setter': int(auto_away)})
+        self._set('structures', {'away': AWAY_MAP[value]})
 
     @property
     def away(self):
@@ -833,51 +1270,86 @@ class Structure(NestBase):
 
     @property
     def country_code(self):
-        return self._structure['country_code']
+        return self._structure.get('country_code')
 
     @property
     def devices(self):
-        return [Device(devid.split('.')[-1], self._nest_api,
-                       self._local_time)
-                for devid in self._structure.get('devices', [])]
+        raise NotImplementedError("Use thermostats instead")
+
+    @property
+    def thermostats(self):
+        if THERMOSTATS in self._structure:
+            return [Thermostat(devid, self._nest_api)
+                    for devid in self._structure[THERMOSTATS]]
+        else:
+            return []
 
     @property
     def protectdevices(self):
-        return [ProtectDevice(topazid.split('.')[-1], self._nest_api,
-                              self._local_time)
-                for topazid in self._nest_api._status.get('topaz', [])]
+        raise NotImplementedError("Use smoke_co_alarms instead")
+
+    @property
+    def smoke_co_alarms(self):
+        if SMOKE_CO_ALARMS in self._structure:
+            return [SmokeCoAlarm(devid, self._nest_api)
+                    for devid in self._structure[SMOKE_CO_ALARMS]]
+        else:
+            return []
+
+    @property
+    def cameradevices(self):
+        raise NotImplementedError("Use cameras instead")
+
+    @property
+    def cameras(self):
+        if CAMERAS in self._structure:
+            return [Camera(devid, self._nest_api)
+                    for devid in self._structure[CAMERAS]]
+        else:
+            return []
 
     @property
     def dr_reminder_enabled(self):
-        return self._structure['dr_reminder_enabled']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['dr_reminder_enabled']
 
     @property
     def emergency_contact_description(self):
-        return self._structure['emergency_contact_description']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['emergency_contact_description']
 
     @property
     def emergency_contact_type(self):
-        return self._structure['emergency_contact_type']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['emergency_contact_type']
 
     @property
     def emergency_contact_phone(self):
-        return self._structure['emergency_contact_phone']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['emergency_contact_phone']
 
     @property
     def enhanced_auto_away_enabled(self):
-        return self._structure['topaz_enhanced_auto_away_enabled']
+        # FIXME there is probably an equivilant thing for this
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['topaz_enhanced_auto_away_enabled']
 
     @property
     def eta_preconditioning_active(self):
-        return self._structure['eta_preconditioning_active']
+        # FIXME there is probably an equivilant thing for this
+        # or something that can be recommended
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['eta_preconditioning_active']
 
     @property
     def house_type(self):
-        return self._structure['house_type']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['house_type']
 
     @property
     def hvac_safety_shutoff_enabled(self):
-        return self._structure['hvac_safety_shutoff_enabled']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['hvac_safety_shutoff_enabled']
 
     @property
     def name(self):
@@ -889,45 +1361,66 @@ class Structure(NestBase):
 
     @property
     def location(self):
-        return self._structure.get('location')
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure.get('location')
 
     @property
     def address(self):
-        return self._structure.get('street_address')
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure.get('street_address')
 
     @property
     def num_thermostats(self):
-        return self._structure['num_thermostats']
+        if THERMOSTATS in self._structure:
+            return len(self._structure[THERMOSTATS])
+        else:
+            return 0
 
     @property
     def measurement_scale(self):
-        return self._structure['measurement_scale']
+        raise NotImplementedError(
+            "Deprecated Nest API, see temperature_scale on "
+            "thermostats instead")
+        # return self._structure['measurement_scale']
 
     @property
     def postal_code(self):
-        return self._structure['postal_code']
+        # TODO check permissions if this is empty?
+        return self._structure.get('postal_code')
 
     @property
     def renovation_date(self):
-        return self._structure['renovation_date']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['renovation_date']
 
     @property
     def structure_area(self):
-        return self._structure['structure_area']
+        raise NotImplementedError("Deprecated Nest API")
+        # return self._structure['structure_area']
 
     @property
     def time_zone(self):
-        return self._structure['time_zone']
+        if 'time_zone' in self._structure:
+            return self._structure['time_zone']
 
     @property
-    def _wheres(self):
-        return self._nest_api._status['where'][self._serial]['wheres']
+    def peak_period_start_time(self):
+        if 'peak_period_start_time' in self._structure:
+            return parse_time(self._structure['peak_period_start_time'])
+
+    @property
+    def peak_period_end_time(self):
+        if 'peak_period_end_time' in self._structure:
+            return parse_time(self._structure['peak_period_end_time'])
+
+    @property
+    def eta_begin(self):
+        if 'eta_begin' in self._structure:
+            return parse_time(self._structure['eta_begin'])
 
     @property
     def wheres(self):
-        ret = {w['name'].lower(): w['where_id'] for w in self._wheres}
-        ret.update({v: k for k, v in ret.items()})
-        return ret
+        return self._structure['wheres']
 
     @wheres.setter
     def wheres(self, value):
@@ -940,7 +1433,7 @@ class Structure(NestBase):
             return self.wheres[name]
 
         name = ' '.join([n.capitalize() for n in name.split()])
-        wheres = copy.copy(self._wheres)
+        wheres = copy.copy(self.wheres)
 
         if ident is None:
             ident = str(uuid.uuid4())
@@ -958,38 +1451,20 @@ class Structure(NestBase):
 
         ident = self.wheres[name]
 
-        wheres = [w for w in copy.copy(self._wheres)
+        wheres = [w for w in copy.copy(self.wheres)
                   if w['name'] != name and w['where_id'] != ident]
 
         self.wheres = wheres
         return ident
 
 
-class WeatherCache(object):
-    def __init__(self, nest_api, cache_ttl=270):
-        self._nest_api = nest_api
-        self._cache_ttl = cache_ttl
-        self._cache = {}
-
-    def __getitem__(self, postal_code):
-        value, last_update = self._cache.get(postal_code, (None, 0))
-        now = time.time()
-
-        if not value or now - last_update > self._cache_ttl:
-            url = self._nest_api.urls['weather_url'] + postal_code
-            response = self._nest_api._session.get(url)
-            response.raise_for_status()
-            value = response.json()[postal_code]
-            self._cache[postal_code] = (value, now)
-
-        return value
-
-
 class Nest(object):
-    def __init__(self, username, password, cache_ttl=270,
-                 user_agent='Nest/1.1.0.10 CFNetwork/548.0.4',
+    def __init__(self, username=None, password=None, cache_ttl=270,
+                 user_agent=None,
                  access_token=None, access_token_cache_file=None,
-                 local_time=False):
+                 local_time=False,
+                 client_id=None, client_secret=None,
+                 product_version=None):
         self._urls = {}
         self._limits = {}
         self._user = None
@@ -998,31 +1473,107 @@ class Nest(object):
         self._staff = False
         self._superuser = False
         self._email = None
+
         self._cache_ttl = cache_ttl
         self._cache = (None, 0)
-        self._weather = WeatherCache(self)
-        self._local_time = local_time
+
+        if local_time:
+            raise ValueError("local_time no longer supported")
+
+        if user_agent:
+            raise ValueError("user_agent no longer supported")
 
         def auth_callback(result):
-            self._urls = result['urls']
-            self._limits = result['limits']
-            self._user = result['user']
-            self._userid = result['userid']
-            self._weave = result['weave']
-            self._staff = result['is_staff']
-            self._superuser = result['is_superuser']
-            self._email = result['email']
+            self._access_token = result['access_token']
 
-        self._user_agent = user_agent
+        self._access_token = access_token
+        self._client_id = client_id
+        self._client_secret = client_secret
+        self._product_version = product_version
+
         self._session = requests.Session()
-        auth = NestAuth(username, password, auth_callback=auth_callback,
+        auth = NestAuth(client_id=self._client_id,
+                        client_secret=self._client_secret,
                         session=self._session, access_token=access_token,
                         access_token_cache_file=access_token_cache_file)
         self._session.auth = auth
 
-        headers = {'user-agent': 'Nest/1.1.0.10 CFNetwork/548.0.4',
-                   'X-nl-protocol-version': '1'}
-        self._session.headers.update(headers)
+    @property
+    def authorization_required(self):
+        return self.never_authorized or \
+            self.invalid_access_token or \
+            self.client_version_out_of_date
+
+    @property
+    def never_authorized(self):
+        return self.access_token is None
+
+    @property
+    def invalid_access_token(self):
+        try:
+            self._status
+            return False
+        except AuthorizationError:
+            return True
+
+    @property
+    def client_version_out_of_date(self):
+        if self._product_version is not None:
+            self._bust_cache()
+            try:
+                return self.client_version < self._product_version
+            # an error means they need to authorize anyways
+            except AuthorizationError:
+                return True
+        return False
+
+    @property
+    def authorize_url(self):
+        state = hashlib.md5(os.urandom(32)).hexdigest()
+        return AUTHORIZE_URL.format(self._client_id, state)
+
+    def request_token(self, pin):
+        self._session.auth.pin = pin
+        self._session.auth.login()
+
+    @property
+    def access_token(self):
+        return self._access_token or self._session.auth.access_token
+
+    def _request(self, verb, path="/", data=None):
+        url = "%s%s" % (API_URL, path)
+
+        if data is not None:
+            data = json.dumps(data)
+
+        response = self._session.request(verb, url,
+                                         allow_redirects=False,
+                                         data=data)
+        if response.status_code == 200:
+            return response.json()
+
+        if response.status_code == 401:
+            raise AuthorizationError(response)
+
+        if response.status_code != 307:
+            raise APIError(response)
+
+        redirect_url = response.headers['Location']
+        response = self._session.request(verb, redirect_url,
+                                         allow_redirects=False,
+                                         data=data)
+        # TODO check for 429 status code for too frequent access.
+        # see https://developers.nest.com/documentation/cloud/data-rate-limits
+        if 400 <= response.status_code < 600:
+            raise APIError(response)
+
+        return response.json()
+
+    def _get(self, path="/"):
+        return self._request('GET', path)
+
+    def _put(self, path="/", data=None):
+        return self._request('PUT', path, data=data)
 
     def __enter__(self):
         return self
@@ -1036,36 +1587,62 @@ class Nest(object):
         now = time.time()
 
         if not value or now - last_update > self._cache_ttl:
-            url = self.urls['transport_url'] + '/v2/mobile/' + self.user
-            response = self._session.get(url)
-            response.raise_for_status()
-            value = response.json()
+            value = self._get("/")
             self._cache = (value, now)
 
         return value
+
+    @property
+    def _metadata(self):
+        return self._status[METADATA]
+
+    @property
+    def client_version(self):
+        return self._metadata['client_version']
+
+    @property
+    def _devices(self):
+        return self._status[DEVICES]
 
     def _bust_cache(self):
         self._cache = (None, 0)
 
     @property
     def devices(self):
-        return [Device(devid.split('.')[-1], self, self._local_time)
-                for devid in self._status['device']]
+        raise NotImplementedError("Use thermostats instead")
+
+    @property
+    def thermostats(self):
+        return [Thermostat(devid, self)
+                for devid in self._devices.get(THERMOSTATS, [])]
 
     @property
     def protectdevices(self):
-        return [ProtectDevice(topazid.split('.')[-1], self, self._local_time)
-                for topazid in self._status['topaz']]
+        raise NotImplementedError("Use smoke_co_alarms instead")
+
+    @property
+    def smoke_co_alarms(self):
+        return [SmokeCoAlarm(devid, self)
+                for devid in self._devices.get(SMOKE_CO_ALARMS, [])]
+
+    @property
+    def cameradevices(self):
+        raise NotImplementedError("Use cameras instead")
+
+    @property
+    def cameras(self):
+        return [Camera(devid, self)
+                for devid in self._devices.get(CAMERAS, [])]
 
     @property
     def structures(self):
-        return [Structure(stid, self, self._local_time)
-                for stid in self._status['structure']]
+        return [Structure(stid, self)
+                for stid in self._status[STRUCTURES]]
 
     @property
     def urls(self):
-        return self._session.auth.urls
+        raise NotImplementedError("Deprecated Nest API")
 
     @property
     def user(self):
-        return self._session.auth.user
+        raise NotImplementedError("Deprecated Nest API")
