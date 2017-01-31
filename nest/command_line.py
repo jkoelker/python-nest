@@ -244,6 +244,7 @@ def main():
             print('Device: %s' % device.name)
             print('Where: %s' % device.where)
             print('Mode     : %s' % device.mode)
+            print('State    : %s' % device.hvac_state)
             print('Fan      : %s' % device.fan)
             print('Temp     : %0.1f%s' % (device.temperature,
                                           device.temperature_scale))
