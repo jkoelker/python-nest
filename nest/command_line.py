@@ -82,6 +82,8 @@ def parse_args():
                             help='set mode to cool')
     mode_group.add_argument('--heat', action='store_true', default=False,
                             help='set mode to heat')
+    mode_group.add_argument('--eco', action='store_true', default=False,
+                            help='set mode to eco')
     mode_group.add_argument('--range', action='store_true', default=False,
                             help='set mode to range')
     mode_group.add_argument('--off', action='store_true', default=False,
@@ -217,6 +219,9 @@ def main():
 
             elif args.heat:
                 device.mode = 'heat'
+
+            elif args.eco:
+                device.mode = 'eco'
 
             elif args.range:
                 device.mode = 'range'
