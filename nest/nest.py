@@ -295,7 +295,7 @@ class Thermostat(Device):
         if mapped_value is None:
             raise ValueError("Only True and False supported")
 
-        self._set('device', {'fan_timer_active': mapped_value})
+        self._set('devices/thermostats', {'fan_timer_active': mapped_value})
 
     @property
     def humidity(self):
