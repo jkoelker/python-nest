@@ -248,6 +248,7 @@ def main():
             # TODO should pad key? old code put : out 35
             print('Device: %s' % device.name)
             print('Where: %s' % device.where)
+            print('Away     : %s' % device.structure.away)
             print('Mode     : %s' % device.mode)
             print('State    : %s' % device.hvac_state)
             print('Fan      : %s' % device.fan)
