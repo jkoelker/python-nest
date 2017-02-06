@@ -1377,6 +1377,20 @@ class Structure(NestBase):
             return 0
 
     @property
+    def num_cameras(self):
+        if CAMERAS in self._structure:
+            return len(self._structure[CAMERAS])
+        else:
+            return 0
+
+    @property
+    def num_smokecoalarms(self):
+        if SMOKE_CO_ALARMS in self._structure:
+            return len(self._structure[SMOKE_CO_ALARMS])
+        else:
+            return 0
+
+    @property
     def measurement_scale(self):
         raise NotImplementedError(
             "Deprecated Nest API, see temperature_scale on "
