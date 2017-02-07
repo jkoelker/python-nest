@@ -82,6 +82,8 @@ def parse_args():
                             help='set mode to cool')
     mode_group.add_argument('--heat', action='store_true', default=False,
                             help='set mode to heat')
+    mode_group.add_argument('--eco', action='store_true', default=False,
+                            help='set mode to eco')
     mode_group.add_argument('--range', action='store_true', default=False,
                             help='set mode to range')
     mode_group.add_argument('--off', action='store_true', default=False,
@@ -218,6 +220,9 @@ def main():
             elif args.heat:
                 device.mode = 'heat'
 
+            elif args.eco:
+                device.mode = 'eco'
+
             elif args.range:
                 device.mode = 'range'
 
@@ -243,7 +248,9 @@ def main():
             # TODO should pad key? old code put : out 35
             print('Device: %s' % device.name)
             print('Where: %s' % device.where)
+            print('Away     : %s' % device.structure.away)
             print('Mode     : %s' % device.mode)
+            print('State    : %s' % device.hvac_state)
             print('Fan      : %s' % device.fan)
             print('Temp     : %0.1f%s' % (device.temperature,
                                           device.temperature_scale))

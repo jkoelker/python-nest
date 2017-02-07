@@ -295,7 +295,7 @@ class Thermostat(Device):
         if mapped_value is None:
             raise ValueError("Only True and False supported")
 
-        self._set('device', {'fan_timer_active': mapped_value})
+        self._set('devices/thermostats', {'fan_timer_active': mapped_value})
 
     @property
     def humidity(self):
@@ -1373,6 +1373,20 @@ class Structure(NestBase):
     def num_thermostats(self):
         if THERMOSTATS in self._structure:
             return len(self._structure[THERMOSTATS])
+        else:
+            return 0
+
+    @property
+    def num_cameras(self):
+        if CAMERAS in self._structure:
+            return len(self._structure[CAMERAS])
+        else:
+            return 0
+
+    @property
+    def num_smokecoalarms(self):
+        if SMOKE_CO_ALARMS in self._structure:
+            return len(self._structure[SMOKE_CO_ALARMS])
         else:
             return 0
 
