@@ -220,6 +220,10 @@ class Device(NestBase):
         return self._device.get('name_long')
 
     @property
+    def device_id(self):
+        return self._device.get('device_id')
+
+    @property
     def online(self):
         return self._device.get('is_online')
 
@@ -396,6 +400,10 @@ class Thermostat(Device):
     @property
     def is_using_emergency_heat(self):
         return self._device.get('is_using_emergency_heat')
+
+    @property
+    def label(self):
+        return self._device.get('label')
 
     @property
     def local_ip(self):
