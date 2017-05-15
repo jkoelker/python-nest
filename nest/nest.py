@@ -1072,6 +1072,10 @@ class Camera(Device):
     def is_streaming(self):
         return self._device.get('is_streaming')
 
+    @is_streaming.setter
+    def is_streaming(self, value):
+        self._set('devices/cameras', {'is_streaming': value})
+
     @property
     def is_video_history_enabled(self):
         return self._device.get('is_video_history_enabled')
