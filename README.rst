@@ -70,71 +70,45 @@ You can import the module as `nest`.
     napi = nest.Nest(client_id=client_id, client_secret=client_secret, access_token_cache_file=access_token_cache_file)
 
     if napi.authorization_required:
-        print('Go to ' + nest.authorize_url + ' to authorize, then enter PIN below')
+        print('Go to ' + napi.authorize_url + ' to authorize, then enter PIN below')
         pin = input("PIN: ")
-        nest.request_token(pin)
+        napi.request_token(pin)
 
     for structure in napi.structures:
-        print 'Structure %s' % structure.name
-        print '    Away: %s' % structure.away
-        print '    Devices:'
+        print ('Structure %s' % structure.name)
+        print ('    Away: %s' % structure.away)
+        print ('    Devices:')
 
-        for device in structure.devices:
-            print '        Device: %s' % device.name
-            print '            Temp: %0.1f' % device.temperature
+        for device in structure.thermostats:
+            print ('        Device: %s' % device.name)
+            print ('            Temp: %0.1f' % device.temperature)
 
     # Access advanced structure properties:
     for structure in napi.structures:
-        print 'Structure   : %s' % structure.name
-        print ' Postal Code                    : %s' % structure.postal_code
-        print ' Country                        : %s' % structure.country_code
-        print ' dr_reminder_enabled            : %s' % structure.dr_reminder_enabled
-        print ' emergency_contact_description  : %s' % structure.emergency_contact_description
-        print ' emergency_contact_type         : %s' % structure.emergency_contact_type
-        print ' emergency_contact_phone        : %s' % structure.emergency_contact_phone
-        print ' enhanced_auto_away_enabled     : %s' % structure.enhanced_auto_away_enabled
-        print ' eta_preconditioning_active     : %s' % structure.eta_preconditioning_active
-        print ' house_type                     : %s' % structure.house_type
-        print ' hvac_safety_shutoff_enabled    : %s' % structure.hvac_safety_shutoff_enabled
-        print ' num_thermostats                : %s' % structure.num_thermostats
-        print ' measurement_scale              : %s' % structure.measurement_scale
-        print ' renovation_date                : %s' % structure.renovation_date
-        print ' structure_area                 : %s' % structure.structure_area
+        print ('Structure   : %s' % structure.name)
+        print (' Postal Code                    : %s' % structure.postal_code)
+        print (' Country                        : %s' % structure.country_code)
+        print (' num_thermostats                : %s' % structure.num_thermostats)
 
     # Access advanced device properties:
-        for device in structure.devices:
-            print '        Device: %s' % device.name
-            print '        Where: %s' % device.where
-            print '            Mode     : %s' % device.mode
-            print '            Fan      : %s' % device.fan
-            print '            Temp     : %0.1fC' % device.temperature
-            print '            Humidity : %0.1f%%' % device.humidity
-            print '            Target   : %0.1fC' % device.target
-            print '            Away Heat: %0.1fC' % device.away_temperature[0]
-            print '            Away Cool: %0.1fC' % device.away_temperature[1]
-            print '            Eco      : %s' % device.eco
+        for device in structure.thermostats:
+            print ('        Device: %s' % device.name)
+            print ('        Where: %s' % device.where)
+            print ('            Mode     : %s' % device.mode)
+            print ('            Fan      : %s' % device.fan)
+            print ('            Temp     : %0.1fC' % device.temperature)
+            print ('            Humidity : %0.1f%%' % device.humidity)
+            print ('            Target   : %0.1fC' % device.target)
+            print ('            Eco High : %0.1fC' % device.eco_temperature.high)
+            print ('            Eco Low  : %0.1fC' % device.eco_temperature.low)
 
-            print '            hvac_ac_state         : %s' % device.hvac_ac_state
-            print '            hvac_cool_x2_state    : %s' % device.hvac_cool_x2_state
-            print '            hvac_heater_state     : %s' % device.hvac_heater_state
-            print '            hvac_aux_heater_state : %s' % device.hvac_aux_heater_state
-            print '            hvac_heat_x2_state    : %s' % device.hvac_heat_x2_state
-            print '            hvac_heat_x3_state    : %s' % device.hvac_heat_x3_state
-            print '            hvac_alt_heat_state   : %s' % device.hvac_alt_heat_state
-            print '            hvac_alt_heat_x2_state: %s' % device.hvac_alt_heat_x2_state
-            print '            hvac_emer_heat_state  : %s' % device.hvac_emer_heat_state
+            print ('            hvac_emer_heat_state  : %s' % device.is_using_emergency_heat)
 
-            print '            online                : %s' % device.online
-            print '            last_ip               : %s' % device.last_ip
-            print '            local_ip              : %s' % device.local_ip
-            print '            last_connection       : %s' % device.last_connection
-
-            print '            error_code            : %s' % device.error_code
-            print '            battery_level         : %s' % device.battery_level
+            print ('            online                : %s' % device.online)
 
     # The Nest object can also be used as a context manager
     with nest.Nest(client_id=client_id, client_secret=client_secret, access_token_cache_file=access_token_cache_file) as napi:
-        for device in napi.devices:
+        for device in napi.thermostats:
             device.temperature = 23
 
     # Nest product's can be updated to include other permissions. Before you
