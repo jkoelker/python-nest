@@ -14,19 +14,19 @@ Installation
     [sudo] pip install python-nest
 
 
-*NOTE* The ``3.x`` version uses the Nest official api. As such some functionality
-was removed as it is not available. To keep the old verision make sure to set
+*NOTE* The ``3.x`` version uses the Nest official api. As such, some functionality
+was removed as it is not available. To keep the old version and functionality, make sure to set
 your requirements to ``python-nest<3.0``.
 
 Nest Developer Account
 =======================
 
 
-You will a Nest developer account, and a Product on the Nest developer portal to use this module:
+You will need a Nest developer account, and a Product on the Nest developer portal to use this module:
 
 1. Visit `Nest Developers <https://developers.nest.com/>`_, and sign in. Create an account if you don't have one already.
 
-2. Fill in account details:
+2. Fill in the account details:
 
   - The "Company Information" can be anything.
 
@@ -111,8 +111,8 @@ You can import the module as `nest`.
         for device in napi.thermostats:
             device.temperature = 23
 
-    # Nest product's can be updated to include other permissions. Before you
-    # can access with the API, a user has to authorize again. To handle this
+    # Nest products can be updated to include other permissions. Before you
+    # can access them with the API, a user has to authorize again. To handle this
     # and detect when re-authorization is required, pass in a product_version
     client_id = 'XXXXXXXXXXXXXXX'
     client_secret = 'XXXXXXXXXXXXXXX'
@@ -212,7 +212,7 @@ Command line
         nest --conf myconfig --client-id CLIENTID --client-secret SECRET target_hum 35
 
 
-A configuration file must be specified and used for the credentials to communicate with the NEST Thermostat initially.  Once completed and a token is generated, if you're using the default location the command line option will read from it automatically.
+A configuration file must be specified and used for the credentials to communicate with the NEST Thermostat initially.  Once completed and a token is generated, if you're using the default location for the token, the command line option will read from it automatically.
 
 
 .. code-block:: ini
