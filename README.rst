@@ -161,7 +161,7 @@ Command line
 .. code-block:: bash
 
     usage: nest [-h] [--conf FILE] [--token-cache TOKEN_CACHE_FILE] [-t TOKEN]
-                [-u USER] [-p PASSWORD] [-c] [-s SERIAL] [-i INDEX]
+                [--client-id CLIENTID] [--client-secret SECRET] [-c] [-s SERIAL] [-i INDEX]
                 {temp,fan,mode,away,target,humid,target_hum,show} ...
 
     Command line interface to Nest™ Thermostats
@@ -186,30 +186,33 @@ Command line
       -h, --help            show this help message and exit
       --conf FILE           config file (default ~/.config/nest/config)
       --token-cache TOKEN_CACHE_FILE
-                            auth access token
-      -t TOKEN, --token TOKEN
                             auth access token cache file
-      -u USER, --user USER  username for nest.com
-      -p PASSWORD, --password PASSWORD
-                            password for nest.com
+      -t TOKEN, --token TOKEN
+                            auth access token
+      --client-id ID        product id on developer.nest.com
+      --client-secret SECRET
+                            product secret for nest.com
       -c, --celsius         use celsius instead of farenheit
       -s SERIAL, --serial SERIAL
                             optional, specify serial number of nest thermostat to
                             talk to
+      -S STRUCTURE, --structure STRUCTURE
+                            optional, specify structure name toscope device
+                            actions         
       -i INDEX, --index INDEX
                             optional, specify index number of nest to talk to
 
     examples:
         # If your nest is not in range mode
-        nest --user joe@user.com --password swordfish temp 73
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET temp 73
         # If your nest is in range mode
-        nest --user joe@user.com --password swordfish temp 66 73
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET temp 66 73
 
-        nest --user joe@user.com --password swordfish fan --auto
-        nest --user joe@user.com --password swordfish target_hum 35
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET fan --auto
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET target_hum 35
 
 
-A configuration file can also be specified to prevent username/password repitition.
+A configuration file must be specified and used for the credentials to communicate with the NEST Thermostat initially.  Once completed and a token is generated, if you're using the default location the command line option will read from it automatically.
 
 
 .. code-block:: ini
@@ -220,7 +223,7 @@ A configuration file can also be specified to prevent username/password repititi
     token_cache = ~/.config/nest/cache
 
 
-The `[DEFAULT]` section may also be named `[nest]` for convience.
+The `[DEFAULT]` section may also be named `[nest]` for convenience.
 
 
 History
