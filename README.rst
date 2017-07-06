@@ -62,6 +62,7 @@ You can import the module as `nest`.
 .. code-block:: python
 
     import nest
+    import sys
 
     client_id = 'XXXXXXXXXXXXXXX'
     client_secret = 'XXXXXXXXXXXXXXX'
@@ -71,7 +72,10 @@ You can import the module as `nest`.
 
     if napi.authorization_required:
         print('Go to ' + napi.authorize_url + ' to authorize, then enter PIN below')
-        pin = input("PIN: ")
+        if sys.version_info[0] < 3:
+            pin = raw_input("PIN: ")
+        else:
+            pin = input("PIN: ")
         napi.request_token(pin)
 
     for structure in napi.structures:
@@ -198,7 +202,7 @@ Command line
                             talk to
       -S STRUCTURE, --structure STRUCTURE
                             optional, specify structure name toscope device
-                            actions         
+                            actions
       -i INDEX, --index INDEX
                             optional, specify index number of nest to talk to
 
