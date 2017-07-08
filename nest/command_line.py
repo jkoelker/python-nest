@@ -17,11 +17,17 @@ from . import helpers
 
 
 def parse_args():
+    # Get Executable name
     prog = os.path.basename(sys.argv[0])
-    config_file = os.path.sep.join(('~', '.config', 'nest', 'config'))
+
+    config_file = os.path.expanduser('~/config/nest/config')
+
+    #config_file = os.path.sep.join(('~', '.config', 'nest', 'config'))
     token_cache = os.path.sep.join(('~', '.config', 'nest', 'token_cache'))
 
     conf_parser = argparse.ArgumentParser(prog=prog, add_help=False)
+
+    # This isn't working
     conf_parser.add_argument('--conf', default=config_file,
                              help='config file (default %s)' % config_file,
                              metavar='FILE')
@@ -120,13 +126,28 @@ def main():
 
     display_temp = _identity
 
+    # Expand the path to check for existence
+    config_dir = os.path.expanduser("~/.config/nest")
+
+    # Check if .config directory exists
+    if not os.path.exists(config_dir):
+
+        # If it does not, create it
+        try:
+            os.makedirs(config_dir)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+
+    # This is the command(s) passed to the command line utility
     cmd = args.command
 
-    if args.client_id is None or args.client_secret is None:
-        print("Missing client and secret. Either call with --client-id "
-              "and --client-secret or add to config as client_id and "
-              "client_secret")
-        return
+    if not os.path.exists(args.conf):
+        if args.client_id is None or args.client_secret is None:
+            print("Missing client and secret. Either call with --client-id "
+                  "and --client-secret or add to config as client_id and "
+                  "client_secret")
+            return
 
     token_cache = os.path.expanduser(args.token_cache)
 
@@ -137,7 +158,10 @@ def main():
         if napi.authorization_required:
             print('Go to ' + napi.authorize_url +
                   ' to authorize, then enter PIN below')
-            pin = input("PIN: ")
+            if sys.version_info[0] < 3:
+                pin = raw_input("PIN: ")
+            else:
+                pin = input("PIN: ")
             napi.request_token(pin)
 
         if cmd == 'away':
@@ -248,24 +272,34 @@ def main():
             # TODO should pad key? old code put : out 35
             print('Device: %s' % device.name)
             print('Where: %s' % device.where)
-            print('Away     : %s' % device.structure.away)
-            print('Mode     : %s' % device.mode)
-            print('State    : %s' % device.hvac_state)
-            print('Fan      : %s' % device.fan)
-            print('Temp     : %0.1f%s' % (device.temperature,
+            print('Away                  : %s' % device.structure.away)
+            print('Mode                  : %s' % device.mode)
+            print('State                 : %s' % device.hvac_state)
+            print('Can Heat              : %s' % device.can_heat)
+            print('Can Cool              : %s' % device.can_cool)
+            print('Has Humidifier        : %s' % device.has_humidifier)
+            print('Has Dehumidifier      : %s' % device.has_humidifier)
+            print('Has Fan               : %s' % device.has_fan)
+            if device.has_fan:
+                print('Fan                   : %s' % device.fan)
+                print('Fan Timer             : %s' % device.fan_timer)
+            print('Has Hot Water Control : %s' % device.has_hot_water_control)
+            if device.has_hot_water_control:
+                print('Hot Water Temp        : %s' % device.fan)
+            print('Temp                  : %0.1f%s' % (device.temperature,
                                           device.temperature_scale))
-            print('Humidity : %0.1f%%' % device.humidity)
+            print('Humidity              : %0.1f%%' % device.humidity)
             if isinstance(device.target, tuple):
-                print('Target   : %0.1f-%0.1f%s' % (
+                print('Target                 : %0.1f-%0.1f%s' % (
                     display_temp(device.target[0]),
                     display_temp(device.target[1]),
                     device.temperature_scale))
             else:
-                print('Target   : %0.1f%s' % (display_temp(device.target),
+                print('Target                : %0.1f%s' % (display_temp(device.target),
                                               device.temperature_scale))
-            print('Away Heat: %0.1fC' % device.eco_temperature[0])
-            print('Away Cool: %0.1fC' % device.eco_temperature[1])
-            print('Has Leaf : %s' % device.has_leaf)
+            print('Away Heat             : %0.1fC' % device.eco_temperature[0])
+            print('Away Cool             : %0.1fC' % device.eco_temperature[1])
+            print('Has Leaf              : %s' % device.has_leaf)
 
 
 if __name__ == '__main__':
