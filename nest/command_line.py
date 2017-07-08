@@ -296,7 +296,7 @@ def main():
                     device.temperature_scale))
             else:
                 print('Target                : %0.1f%s' %
-                    (display_temp(device.target), device.temperature_scale))
+                        (display_temp(device.target), device.temperature_scale))
             print('Away Heat             : %0.1fC' % device.eco_temperature[0])
             print('Away Cool             : %0.1fC' % device.eco_temperature[1])
             print('Has Leaf              : %s' % device.has_leaf)
