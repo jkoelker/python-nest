@@ -149,9 +149,9 @@ def main():
     if not os.path.exists(token_cache):
         if args.client_id is None or args.client_secret is None:
             print("Missing client and secret. If using a configuration file,"
-                  " ensure that it is formatted properly, with a section titled"
-                  " as per the documentation-otherwise, call with --client-id "
-                  "and --client-secret.")
+                  " ensure that it is formatted properly, with a section "
+                  "titled as per the documentation-otherwise, call with "
+                  "--client-id and --client-secret.")
             return
 
     with nest.Nest(client_id=args.client_id, client_secret=args.client_secret,
