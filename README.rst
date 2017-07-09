@@ -147,7 +147,7 @@ You can import the module as `nest`.
 
 
 
-FIXME In the API, temperatures are in  all temperature values are in degrees celsius. Helper functions
+FIXME In the API, all temperature values are in degrees celsius. Helper functions
 for conversion are in the `utils` module:
 
 .. code-block:: python
@@ -223,13 +223,13 @@ A configuration file must be specified and used for the credentials to communica
 
 .. code-block:: ini
 
-    [DEFAULT]
+    [NEST]
     user = joe@user.com
     password = swordfish
-    token_cache = ~/.config/nest/cache
+    token_cache = ~/.config/nest/token_cache
 
 
-The `[DEFAULT]` section may also be named `[nest]` for convenience.
+The `[NEST]` section may also be named `[nest]` for convenience. Do not use `[DEFAULT]` as it cannot be read
 
 
 History

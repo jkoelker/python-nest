@@ -16,18 +16,20 @@ from . import nest
 from . import utils
 from . import helpers
 
+# use six for python2/python3 compatibility
+from six.moves import input
+
 
 def parse_args():
     # Get Executable name
     prog = os.path.basename(sys.argv[0])
 
-    config_file = os.path.expanduser('~/config/nest/config')
+    config_file = os.path.expanduser('~/.config/nest/config')
 
     token_cache = os.path.sep.join(('~', '.config', 'nest', 'token_cache'))
 
     conf_parser = argparse.ArgumentParser(prog=prog, add_help=False)
 
-    # This isn't working
     conf_parser.add_argument('--conf', default=config_file,
                              help='config file (default %s)' % config_file,
                              metavar='FILE')
@@ -72,8 +74,9 @@ def parse_args():
     subparsers = parser.add_subparsers(dest='command',
                                        help='command help')
     temp = subparsers.add_parser('temp', help='show/set temperature')
+
     temp.add_argument('temperature', nargs='*', type=float,
-                      help='target tempterature to set device to')
+                      help='target temperature to set device to')
 
     fan = subparsers.add_parser('fan', help='set fan "on" or "auto"')
     fan_group = fan.add_mutually_exclusive_group()
@@ -142,12 +145,12 @@ def main():
     # This is the command(s) passed to the command line utility
     cmd = args.command
 
-    if not os.path.exists(args.conf):
-        if args.client_id is None or args.client_secret is None:
-            print("Missing client and secret. Either call with --client-id "
-                  "and --client-secret or add to config as client_id and "
-                  "client_secret")
-            return
+    if args.client_id is None or args.client_secret is None:
+        print("Missing client and secret. If using a configuration file,"
+              " ensure that it is formatted properly, with a section titled"
+              " as per the documentation-otherwise, call with --client-id "
+              "and --client-secret.")
+        return
 
     token_cache = os.path.expanduser(args.token_cache)
 
@@ -158,10 +161,7 @@ def main():
         if napi.authorization_required:
             print('Go to ' + napi.authorize_url +
                   ' to authorize, then enter PIN below')
-            if sys.version_info[0] < 3:
-                pin = raw_input("PIN: ")
-            else:
-                pin = input("PIN: ")
+            pin = input("PIN: ")
             napi.request_token(pin)
 
         if cmd == 'away':
@@ -286,8 +286,8 @@ def main():
             print('Has Hot Water Control : %s' % device.has_hot_water_control)
             if device.has_hot_water_control:
                 print('Hot Water Temp        : %s' % device.fan)
-            print('Temp                  : %0.1f%s' %
-                  (device.temperature, device.temperature_scale))
+            print('Temp                  : %0.1f%s' % (device.temperature,
+                device.temperature_scale))
             print('Humidity              : %0.1f%%' % device.humidity)
             if isinstance(device.target, tuple):
                 print('Target                 : %0.1f-%0.1f%s' % (
@@ -295,8 +295,8 @@ def main():
                     display_temp(device.target[1]),
                     device.temperature_scale))
             else:
-                print('Target                : %0.1f%s' %
-                      (display_temp(device.target), device.temperature_scale))
+                print('Target                : %0.1f%s' % \
+                (display_temp(device.target), device.temperature_scale))
             print('Away Heat             : %0.1fC' % device.eco_temperature[0])
             print('Away Cool             : %0.1fC' % device.eco_temperature[1])
             print('Has Leaf              : %s' % device.has_leaf)
