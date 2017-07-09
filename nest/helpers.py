@@ -31,7 +31,7 @@ def get_config(config_path=None, prog='nest'):
         elif config.has_section('NEST'):
             defaults.update(dict(config.items('NEST')))
         else:
-            print ('Incorrectly formatted configuration file.')
+            print('Incorrectly formatted configuration file.')
             exit()
 
     return defaults
