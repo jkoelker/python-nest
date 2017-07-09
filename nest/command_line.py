@@ -24,8 +24,7 @@ def parse_args():
     # Get Executable name
     prog = os.path.basename(sys.argv[0])
 
-    config_file = os.path.expanduser('~/.config/nest/config')
-
+    config_file = os.path.sep.join(('~', '.config', 'nest', 'config'))
     token_cache = os.path.sep.join(('~', '.config', 'nest', 'token_cache'))
 
     conf_parser = argparse.ArgumentParser(prog=prog, add_help=False)
