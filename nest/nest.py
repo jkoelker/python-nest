@@ -608,6 +608,10 @@ class Thermostat(Device):
         # data['eco']['mode_update_timestamp'] = time.time()
         # self._set('device', data)
 
+    @property
+    def previous_mode(self):
+        return self._device.get('previous_hvac_mode')
+
 
 class SmokeCoAlarm(Device):
     @property
