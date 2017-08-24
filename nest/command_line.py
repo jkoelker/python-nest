@@ -10,18 +10,25 @@ from __future__ import print_function
 import argparse
 import os
 import sys
+import errno
 
 from . import nest
 from . import utils
 from . import helpers
 
+# use six for python2/python3 compatibility
+from six.moves import input
+
 
 def parse_args():
+    # Get Executable name
     prog = os.path.basename(sys.argv[0])
+
     config_file = os.path.sep.join(('~', '.config', 'nest', 'config'))
     token_cache = os.path.sep.join(('~', '.config', 'nest', 'token_cache'))
 
     conf_parser = argparse.ArgumentParser(prog=prog, add_help=False)
+
     conf_parser.add_argument('--conf', default=config_file,
                              help='config file (default %s)' % config_file,
                              metavar='FILE')
@@ -66,8 +73,9 @@ def parse_args():
     subparsers = parser.add_subparsers(dest='command',
                                        help='command help')
     temp = subparsers.add_parser('temp', help='show/set temperature')
+
     temp.add_argument('temperature', nargs='*', type=float,
-                      help='target tempterature to set device to')
+                      help='target temperature to set device to')
 
     fan = subparsers.add_parser('fan', help='set fan "on" or "auto"')
     fan_group = fan.add_mutually_exclusive_group()
@@ -120,15 +128,31 @@ def main():
 
     display_temp = _identity
 
+    # Expand the path to check for existence
+    config_dir = os.path.expanduser("~/.config/nest")
+
+    # Check if .config directory exists
+    if not os.path.exists(config_dir):
+
+        # If it does not, create it
+        try:
+            os.makedirs(config_dir)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+
+    # This is the command(s) passed to the command line utility
     cmd = args.command
 
-    if args.client_id is None or args.client_secret is None:
-        print("Missing client and secret. Either call with --client-id "
-              "and --client-secret or add to config as client_id and "
-              "client_secret")
-        return
-
     token_cache = os.path.expanduser(args.token_cache)
+
+    if not os.path.exists(token_cache):
+        if args.client_id is None or args.client_secret is None:
+            print("Missing client and secret. If using a configuration file,"
+                  " ensure that it is formatted properly, with a section "
+                  "titled as per the documentation-otherwise, call with "
+                  "--client-id and --client-secret.")
+            return
 
     with nest.Nest(client_id=args.client_id, client_secret=args.client_secret,
                    access_token=args.token,
@@ -248,24 +272,34 @@ def main():
             # TODO should pad key? old code put : out 35
             print('Device: %s' % device.name)
             print('Where: %s' % device.where)
-            print('Away     : %s' % device.structure.away)
-            print('Mode     : %s' % device.mode)
-            print('State    : %s' % device.hvac_state)
-            print('Fan      : %s' % device.fan)
-            print('Temp     : %0.1f%s' % (device.temperature,
-                                          device.temperature_scale))
-            print('Humidity : %0.1f%%' % device.humidity)
+            print('Away                  : %s' % device.structure.away)
+            print('Mode                  : %s' % device.mode)
+            print('State                 : %s' % device.hvac_state)
+            print('Can Heat              : %s' % device.can_heat)
+            print('Can Cool              : %s' % device.can_cool)
+            print('Has Humidifier        : %s' % device.has_humidifier)
+            print('Has Dehumidifier      : %s' % device.has_humidifier)
+            print('Has Fan               : %s' % device.has_fan)
+            if device.has_fan:
+                print('Fan                   : %s' % device.fan)
+                print('Fan Timer             : %s' % device.fan_timer)
+            print('Has Hot Water Control : %s' % device.has_hot_water_control)
+            if device.has_hot_water_control:
+                print('Hot Water Temp        : %s' % device.fan)
+            print('Temp                  : %0.1f%s' % (device.temperature,
+                  device.temperature_scale))
+            print('Humidity              : %0.1f%%' % device.humidity)
             if isinstance(device.target, tuple):
-                print('Target   : %0.1f-%0.1f%s' % (
+                print('Target                 : %0.1f-%0.1f%s' % (
                     display_temp(device.target[0]),
                     display_temp(device.target[1]),
                     device.temperature_scale))
             else:
-                print('Target   : %0.1f%s' % (display_temp(device.target),
-                                              device.temperature_scale))
-            print('Away Heat: %0.1fC' % device.eco_temperature[0])
-            print('Away Cool: %0.1fC' % device.eco_temperature[1])
-            print('Has Leaf : %s' % device.has_leaf)
+                print('Target                : %0.1f%s' %
+                      (display_temp(device.target), device.temperature_scale))
+            print('Away Heat             : %0.1fC' % device.eco_temperature[0])
+            print('Away Cool             : %0.1fC' % device.eco_temperature[1])
+            print('Has Leaf              : %s' % device.has_leaf)
 
 
 if __name__ == '__main__':

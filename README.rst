@@ -14,19 +14,19 @@ Installation
     [sudo] pip install python-nest
 
 
-*NOTE* The ``3.x`` version uses the Nest official api. As such some functionality
-was removed as it is not available. To keep the old verision make sure to set
+*NOTE* The ``3.x`` version uses the Nest official api. As such, some functionality
+was removed as it is not available. To keep the old version and functionality, make sure to set
 your requirements to ``python-nest<3.0``.
 
 Nest Developer Account
 =======================
 
 
-You will a Nest developer account, and a Product on the Nest developer portal to use this module:
+You will need a Nest developer account, and a Product on the Nest developer portal to use this module:
 
 1. Visit `Nest Developers <https://developers.nest.com/>`_, and sign in. Create an account if you don't have one already.
 
-2. Fill in account details:
+2. Fill in the account details:
 
   - The "Company Information" can be anything.
 
@@ -62,6 +62,7 @@ You can import the module as `nest`.
 .. code-block:: python
 
     import nest
+    import sys
 
     client_id = 'XXXXXXXXXXXXXXX'
     client_secret = 'XXXXXXXXXXXXXXX'
@@ -71,7 +72,10 @@ You can import the module as `nest`.
 
     if napi.authorization_required:
         print('Go to ' + napi.authorize_url + ' to authorize, then enter PIN below')
-        pin = input("PIN: ")
+        if sys.version_info[0] < 3:
+            pin = raw_input("PIN: ")
+        else:
+            pin = input("PIN: ")
         napi.request_token(pin)
 
     for structure in napi.structures:
@@ -94,13 +98,15 @@ You can import the module as `nest`.
         for device in structure.thermostats:
             print ('        Device: %s' % device.name)
             print ('        Where: %s' % device.where)
-            print ('            Mode     : %s' % device.mode)
-            print ('            Fan      : %s' % device.fan)
-            print ('            Temp     : %0.1fC' % device.temperature)
-            print ('            Humidity : %0.1f%%' % device.humidity)
-            print ('            Target   : %0.1fC' % device.target)
-            print ('            Eco High : %0.1fC' % device.eco_temperature.high)
-            print ('            Eco Low  : %0.1fC' % device.eco_temperature.low)
+            print ('            Mode       : %s' % device.mode)
+            print ('            HVAC State : %s' % device.hvac_state)
+            print ('            Fan        : %s' % device.fan)
+            print ('            Fan Timer  : %i' % device.fan_timer)
+            print ('            Temp       : %0.1fC' % device.temperature)
+            print ('            Humidity   : %0.1f%%' % device.humidity)
+            print ('            Target     : %0.1fC' % device.target)
+            print ('            Eco High   : %0.1fC' % device.eco_temperature.high)
+            print ('            Eco Low    : %0.1fC' % device.eco_temperature.low)
 
             print ('            hvac_emer_heat_state  : %s' % device.is_using_emergency_heat)
 
@@ -111,8 +117,8 @@ You can import the module as `nest`.
         for device in napi.thermostats:
             device.temperature = 23
 
-    # Nest product's can be updated to include other permissions. Before you
-    # can access with the API, a user has to authorize again. To handle this
+    # Nest products can be updated to include other permissions. Before you
+    # can access them with the API, a user has to authorize again. To handle this
     # and detect when re-authorization is required, pass in a product_version
     client_id = 'XXXXXXXXXXXXXXX'
     client_secret = 'XXXXXXXXXXXXXXX'
@@ -141,7 +147,7 @@ You can import the module as `nest`.
 
 
 
-FIXME In the API, temperatures are in  all temperature values are in degrees celsius. Helper functions
+FIXME In the API, all temperature values are in degrees celsius. Helper functions
 for conversion are in the `utils` module:
 
 .. code-block:: python
@@ -161,7 +167,7 @@ Command line
 .. code-block:: bash
 
     usage: nest [-h] [--conf FILE] [--token-cache TOKEN_CACHE_FILE] [-t TOKEN]
-                [-u USER] [-p PASSWORD] [-c] [-s SERIAL] [-i INDEX]
+                [--client-id CLIENTID] [--client-secret SECRET] [-c] [-s SERIAL] [-i INDEX]
                 {temp,fan,mode,away,target,humid,target_hum,show} ...
 
     Command line interface to Nest™ Thermostats
@@ -186,41 +192,44 @@ Command line
       -h, --help            show this help message and exit
       --conf FILE           config file (default ~/.config/nest/config)
       --token-cache TOKEN_CACHE_FILE
-                            auth access token
-      -t TOKEN, --token TOKEN
                             auth access token cache file
-      -u USER, --user USER  username for nest.com
-      -p PASSWORD, --password PASSWORD
-                            password for nest.com
+      -t TOKEN, --token TOKEN
+                            auth access token
+      --client-id ID        product id on developer.nest.com
+      --client-secret SECRET
+                            product secret for nest.com
       -c, --celsius         use celsius instead of farenheit
       -s SERIAL, --serial SERIAL
                             optional, specify serial number of nest thermostat to
                             talk to
+      -S STRUCTURE, --structure STRUCTURE
+                            optional, specify structure name toscope device
+                            actions
       -i INDEX, --index INDEX
                             optional, specify index number of nest to talk to
 
     examples:
         # If your nest is not in range mode
-        nest --user joe@user.com --password swordfish temp 73
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET temp 73
         # If your nest is in range mode
-        nest --user joe@user.com --password swordfish temp 66 73
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET temp 66 73
 
-        nest --user joe@user.com --password swordfish fan --auto
-        nest --user joe@user.com --password swordfish target_hum 35
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET fan --auto
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET target_hum 35
 
 
-A configuration file can also be specified to prevent username/password repitition.
+A configuration file must be specified and used for the credentials to communicate with the NEST Thermostat initially.  Once completed and a token is generated, if you're using the default location for the token, the command line option will read from it automatically.
 
 
 .. code-block:: ini
 
-    [DEFAULT]
+    [NEST]
     user = joe@user.com
     password = swordfish
-    token_cache = ~/.config/nest/cache
+    token_cache = ~/.config/nest/token_cache
 
 
-The `[DEFAULT]` section may also be named `[nest]` for convience.
+The `[NEST]` section may also be named `[nest]` for convenience. Do not use `[DEFAULT]` as it cannot be read
 
 
 History
