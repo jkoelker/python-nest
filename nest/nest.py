@@ -302,6 +302,14 @@ class Thermostat(Device):
         self._set('devices/thermostats', {'fan_timer_active': mapped_value})
 
     @property
+    def fan_timer(self):
+        return self._device.get('fan_timer_duration')
+
+    @fan_timer.setter
+    def fan_timer(self, value):
+        self._set('devices/thermostats', {'fan_timer_duration': value})
+
+    @property
     def humidity(self):
         return self._device.get('humidity')
 
@@ -599,6 +607,10 @@ class Thermostat(Device):
         #     data['eco']['mode'] = 'schedule'
         # data['eco']['mode_update_timestamp'] = time.time()
         # self._set('device', data)
+
+    @property
+    def previous_mode(self):
+        return self._device.get('previous_hvac_mode')
 
 
 class SmokeCoAlarm(Device):
