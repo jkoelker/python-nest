@@ -679,6 +679,10 @@ class SmokeCoAlarm(Device):
         return self._device.get('co_alarm_state')
 
     @property
+    def color_status(self):
+        return self._device.get('ui_color_state')
+
+    @property
     def component_als_test_passed(self):
         raise NotImplementedError("No longer available in Nest API")
         # return self._device['component_als_test_passed']
