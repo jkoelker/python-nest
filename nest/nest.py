@@ -612,6 +612,14 @@ class Thermostat(Device):
     def previous_mode(self):
         return self._device.get('previous_hvac_mode')
 
+    @property
+    def time_to_target(self):
+        return self._device.get('time_to_target')
+
+    @property
+    def time_to_target_training(self):
+        return self._device.get('time_to_target_training')
+
 
 class SmokeCoAlarm(Device):
     @property
