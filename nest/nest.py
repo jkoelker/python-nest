@@ -193,7 +193,7 @@ class NestBase(object):
 class Device(NestBase):
     @property
     def _device(self):
-        raise NotImplementedError("Implemented by sublass")
+        raise NotImplementedError("Implemented by subclass")
 
     @property
     def _devices(self):
@@ -287,6 +287,10 @@ class Thermostat(Device):
     def _track(self):
         raise NotImplementedError("Deprecated Nest API")
         # return self._nest_api._status['track'][self._serial]
+
+    @property
+    def software_version(self):
+        return self._device['software_version']
 
     @property
     def fan(self):
