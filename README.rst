@@ -185,7 +185,8 @@ Command line
                                 specify target humidity value or auto to auto-select a
                                 humidity based on outside temp
         show                show everything
-
+        camera-show         show everything (for cameras)
+        camera-streaming    show/set camera streaming
 
 
     optional arguments:
@@ -217,6 +218,9 @@ Command line
         nest --conf myconfig --client-id CLIENTID --client-secret SECRET fan --auto
         nest --conf myconfig --client-id CLIENTID --client-secret SECRET target_hum 35
 
+        # nestcam examples
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET camera-show
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET camera-streaming --enable-camera-streaming
 
 A configuration file must be specified and used for the credentials to communicate with the NEST Thermostat initially.  Once completed and a token is generated, if you're using the default location for the token, the command line option will read from it automatically.
 

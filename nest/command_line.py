@@ -116,8 +116,71 @@ def parse_args():
 
     subparsers.add_parser('show', help='show everything')
 
+    # Camera parsers
+    subparsers.add_parser('camera-show',
+                          help='show everything (for cameras)')
+    cam_streaming = subparsers.add_parser('camera-streaming',
+                                          help='show/set camera streaming')
+    camera_streaming_group = cam_streaming.add_mutually_exclusive_group()
+    camera_streaming_group.add_argument('--enable-camera-streaming',
+                                        action='store_true', default=False,
+                                        help='Enable camera streaming')
+    camera_streaming_group.add_argument('--disable-camera-streaming',
+                                        action='store_true', default=False,
+                                        help='Disable camera streaming')
+
     parser.set_defaults(**defaults)
     return parser.parse_args()
+
+
+def get_structure(napi, args):
+    if args.structure:
+        struct = [s for s in napi.structures if s.name == args.structure]
+        if struct:
+            return struct[0]
+    return napi.structures[0]
+
+
+def get_device(napi, args, structure):
+    if args.serial:
+        return nest.Camera(args.serial, napi)
+    else:
+        return structure.cameras[args.index]
+
+
+def handle_camera_show(device):
+    print('Device                : %s' % device.name)
+    # print('Model               : %s' % device.model) # Doesn't seem to work
+    print('Serial                : %s' % device.serial)
+    print('Where                 : %s' % device.where)
+    print('Where ID              : %s' % device.where_id)
+    print('Away                  : %s' % device.structure.away)
+    print('Sound Detected        : %s' % device.sound_detected)
+    print('Motion Detected       : %s' % device.motion_detected)
+    print('Person Detected       : %s' % device.person_detected)
+    print('Streaming             : %s' % device.is_streaming)
+    print('Video History Enabled : %s' % device.is_video_history_enabled)
+    print('Audio Enabled         : %s' % device.is_audio_enabled)
+    print('Public Share Enabled  : %s' % device.is_public_share_enabled)
+    print('Snapshot URL          : %s' % device.snapshot_url)
+
+
+def handle_camera_streaming(device, args):
+    if args.disable_camera_streaming:
+        device.is_streaming = False
+    elif args.enable_camera_streaming:
+        device.is_streaming = True
+
+    print('Streaming : %s' % device.is_streaming)
+
+
+def handle_camera_commands(napi, args):
+    structure = get_structure(napi, args)
+    device = get_device(napi, args, structure)
+    if args.command == "camera-show":
+        handle_camera_show(device)
+    elif args.command == "camera-streaming":
+        handle_camera_streaming(device, args)
 
 
 def main():
@@ -164,7 +227,9 @@ def main():
             pin = input("PIN: ")
             napi.request_token(pin)
 
-        if cmd == 'away':
+        if cmd.startswith("camera"):
+            return handle_camera_commands(napi, args)
+        elif cmd == 'away':
             structure = None
 
             if args.structure:
