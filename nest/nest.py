@@ -193,7 +193,7 @@ class NestBase(object):
 class Device(NestBase):
     @property
     def _device(self):
-        raise NotImplementedError("Implemented by sublass")
+        raise NotImplementedError("Implemented by subclass")
 
     @property
     def _devices(self):
@@ -287,6 +287,10 @@ class Thermostat(Device):
     def _track(self):
         raise NotImplementedError("Deprecated Nest API")
         # return self._nest_api._status['track'][self._serial]
+
+    @property
+    def software_version(self):
+        return self._device['software_version']
 
     @property
     def fan(self):
@@ -612,6 +616,14 @@ class Thermostat(Device):
     def previous_mode(self):
         return self._device.get('previous_hvac_mode')
 
+    @property
+    def time_to_target(self):
+        return self._device.get('time_to_target')
+
+    @property
+    def time_to_target_training(self):
+        return self._device.get('time_to_target_training')
+
 
 class SmokeCoAlarm(Device):
     @property
@@ -677,6 +689,10 @@ class SmokeCoAlarm(Device):
     def co_status(self):
         # TODO deprecate for new name
         return self._device.get('co_alarm_state')
+
+    @property
+    def color_status(self):
+        return self._device.get('ui_color_state')
 
     @property
     def component_als_test_passed(self):
