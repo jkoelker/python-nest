@@ -241,5 +241,5 @@ The ``[NEST]`` section may also be named ``[nest]`` for convenience. Do not use 
 History
 =======
 
-This module was originally a fork of `nest_thermostat <https://github.com/FiloSottile/nest_thermostat>`
-which was a fork of `pynest <https://github.com/smbaker/pynest`
+This module was originally a fork of `nest_thermostat <https://github.com/FiloSottile/nest_thermostat>`_
+which was a fork of `pynest <https://github.com/smbaker/pynest>`_
