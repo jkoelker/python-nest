@@ -289,7 +289,7 @@ def main():
                     device.temperature = args.temperature
 
                 else:
-                    device.temperature = args.temperature
+                    device.temperature = args.temperature[0]
 
             print('%0.1f' % display_temp(device.temperature))
 
