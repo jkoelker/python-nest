@@ -362,8 +362,15 @@ def main():
             else:
                 print('Target                : %0.1f%s' %
                       (display_temp(device.target), device.temperature_scale))
-            print('Away Heat             : %0.1fC' % device.eco_temperature[0])
-            print('Away Cool             : %0.1fC' % device.eco_temperature[1])
+
+            if (device.eco_temperature[0]):
+                print('Away Heat             : %0.1fC' %
+                      device.eco_temperature[0])
+
+            if (device.eco_temperature[1]):
+                print('Away Cool             : %0.1fC' %
+                      device.eco_temperature[1])
+
             print('Has Leaf              : %s' % device.has_leaf)
 
 
