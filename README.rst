@@ -147,8 +147,10 @@ You can import the module as `nest`.
 
 
 
-FIXME In the API, all temperature values are in degrees celsius. Helper functions
-for conversion are in the `utils` module:
+In the API, all temperature values are reported and set in the temperature scale
+the device is set to (as determined by the `device.temperature_scale` property).
+
+Helper functions for conversion are in the `utils` module:
 
 .. code-block:: python
 
