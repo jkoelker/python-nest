@@ -2,6 +2,7 @@
 # a module of helper functions
 # mostly for the configuration
 
+from __future__ import print_function
 import contextlib
 import os
 
@@ -71,3 +72,8 @@ def nest_login(config_path=None, username=None, password=None, **kwargs):
     else:
         raise MissingCredentialsError(
             'The login credentials have not been provided.')
+
+
+def print_if(str, *fmt_args):
+    if all(fmt_args):
+        print(str % fmt_args)
