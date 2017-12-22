@@ -57,7 +57,7 @@ Usage
 Module
 ------
 
-You can import the module as `nest`.
+You can import the module as ``nest``.
 
 .. code-block:: python
 
@@ -137,8 +137,8 @@ You can import the module as `nest`.
 
 
     # NOTE: By default all datetime objects are timezone unaware (UTC)
-    #       By passing `local_time=True` to the `Nest` object datetime objects
-    #       will be converted to the timezone reported by nest. If the `pytz`
+    #       By passing ``local_time=True`` to the ``Nest`` object datetime objects
+    #       will be converted to the timezone reported by nest. If the ``pytz``
     #       module is installed those timezone objects are used, else one is
     #       synthesized from the nest data
     napi = nest.Nest(username, password, local_time=True)
@@ -147,8 +147,10 @@ You can import the module as `nest`.
 
 
 
-FIXME In the API, all temperature values are in degrees celsius. Helper functions
-for conversion are in the `utils` module:
+In the API, all temperature values are reported and set in the temperature scale
+the device is set to (as determined by the ``device.temperature_scale`` property).
+
+Helper functions for conversion are in the ``utils`` module:
 
 .. code-block:: python
 
@@ -158,7 +160,7 @@ for conversion are in the `utils` module:
     temp == nest_utils.f_to_c(fahrenheit)
 
 
-The utils function use `decimal.Decimal` to ensure precision.
+The utils function use ``decimal.Decimal`` to ensure precision.
 
 
 Command line
@@ -233,11 +235,11 @@ A configuration file must be specified and used for the credentials to communica
     token_cache = ~/.config/nest/token_cache
 
 
-The `[NEST]` section may also be named `[nest]` for convenience. Do not use `[DEFAULT]` as it cannot be read
+The ``[NEST]`` section may also be named ``[nest]`` for convenience. Do not use ``[DEFAULT]`` as it cannot be read
 
 
 History
 =======
 
-This module was originally a fork of `nest_thermostat <https://github.com/FiloSottile/nest_thermostat>`
-which was a fork of `pynest <https://github.com/smbaker/pynest`
+This module was originally a fork of `nest_thermostat <https://github.com/FiloSottile/nest_thermostat>`_
+which was a fork of `pynest <https://github.com/smbaker/pynest>`_
