@@ -353,7 +353,8 @@ def main():
                 print('Hot Water Temp        : %s' % device.fan)
             print('Temp                  : %0.1f%s' % (device.temperature,
                   device.temperature_scale))
-            print('Humidity              : %0.1f%%' % device.humidity)
+            helpers.print_if('Humidity              : %0.1f%%',
+                             device.humidity)
             if isinstance(device.target, tuple):
                 print('Target                 : %0.1f-%0.1f%s' % (
                     display_temp(device.target[0]),
@@ -362,8 +363,13 @@ def main():
             else:
                 print('Target                : %0.1f%s' %
                       (display_temp(device.target), device.temperature_scale))
-            print('Away Heat             : %0.1fC' % device.eco_temperature[0])
-            print('Away Cool             : %0.1fC' % device.eco_temperature[1])
+
+            helpers.print_if('Away Heat             : %0.1fC',
+                             device.eco_temperature[0])
+
+            helpers.print_if('Away Cool             : %0.1fC',
+                             device.eco_temperature[1])
+
             print('Has Leaf              : %s' % device.has_leaf)
 
 
