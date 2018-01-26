@@ -1286,7 +1286,8 @@ class Camera(Device):
 
     @property
     def snapshot_url(self):
-        if self._device['snapshot_url'] != SIMULATOR_SNAPSHOT_URL:
+        if ('snapshot_url' in self._device and
+                self._device['snapshot_url'] != SIMULATOR_SNAPSHOT_URL):
             return self._device['snapshot_url']
         else:
             return SIMULATOR_SNAPSHOT_PLACEHOLDER_URL
