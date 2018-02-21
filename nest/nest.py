@@ -235,7 +235,12 @@ class Device(NestBase):
     @property
     def where(self):
         if self.where_id is not None:
-            return self.structure.wheres[self.where_id]['name']
+            # This name isn't always present due to upstream bug in the API
+            # https://nestdevelopers.io/t/missing-where-name-from-some-devices/1202
+            if self.where_id in self.structure.wheres:
+                return self.structure.wheres[self.where_id]['name']
+            else:
+                return self.where_id
 
     @property
     def where_id(self):
