@@ -1550,8 +1550,8 @@ class Structure(NestBase):
 
 
 class Nest(object):
-    def __init__(self, username=None, password=None, 
-                # cache_ttl=270,
+    def __init__(self, username=None, password=None,
+                 # cache_ttl=270,
                  user_agent=None,
                  access_token=None, access_token_cache_file=None,
                  local_time=False,
@@ -1590,7 +1590,7 @@ class Nest(object):
         auth = NestAuth(client_id=self._client_id,
                         client_secret=self._client_secret,
                         session=self._session, access_token=access_token,
-                        access_token_cache_file=access_token_cache_file, 
+                        access_token_cache_file=access_token_cache_file,
                         auth_callback=auth_callback)
         self._session.auth = auth
 
@@ -1636,7 +1636,7 @@ class Nest(object):
     def access_token(self):
         return self._access_token or self._session.auth.access_token
 
-    def _handle_ratelimit(self, res, verb, url, data, 
+    def _handle_ratelimit(self, res, verb, url, data,
                           max_retries=10, default_wait=5):
         response = res
         retries = 0
@@ -1689,7 +1689,7 @@ class Nest(object):
                     pass
 
             time.sleep(wait)
-            response = self._http.request('GET', url, headers=headers, 
+            response = self._http.request('GET', url, headers=headers,
                                           preload_content=False)
 
         return response
@@ -1702,14 +1702,14 @@ class Nest(object):
             'Authorization': "Bearer {0}".format(self.access_token),
             'Accept': 'text/event-stream'
         }
-        response = self._http.request('GET', url, headers=headers, 
+        response = self._http.request('GET', url, headers=headers,
                                       preload_content=False)
 
         if response.status == 401:
             raise AuthorizationError(response)
 
         if response.status == 429:
-            response = self._handle_ratelimit_stream(response, url, headers, 
+            response = self._handle_ratelimit_stream(response, url, headers,
                                                      max_retries=10,
                                                      default_wait=5)
 
@@ -1720,14 +1720,14 @@ class Nest(object):
             if response.status_code == 429:
                 response = self._handle_ratelimit_stream(response, url,
                                                          headers,
-                                                         max_retries=10, 
+                                                         max_retries=10,
                                                          default_wait=5)
 
         client = sseclient.SSEClient(response)
 
         ready_event = threading.Event()
         self._queue = collections.deque(maxlen=2)
-        event_thread = threading.Thread(target=self._start_event_loop, 
+        event_thread = threading.Thread(target=self._start_event_loop,
                                         args=(client.events(),
                                         self._queue, ready_event))
         event_thread.setDaemon(True)
@@ -1742,7 +1742,7 @@ class Nest(object):
             elif event_type == 'put':
                 queue.appendleft(json.loads(event.data))
             elif event_type == 'auth_revoked':
-                raise AuthorizationError(None, 
+                raise AuthorizationError(None,
                                          msg='Auth token has been revoked')
             elif event_type == 'error':
                 raise APIError(None, msg=event.data)
@@ -1767,14 +1767,13 @@ class Nest(object):
 
         # Rate Limit Exceeded Catch
         if response.status_code == 429:
-            response = self._handle_ratelimit(response, verb, url, data, 
+            response = self._handle_ratelimit(response, verb, url, data,
                                               max_retries=10,
                                               default_wait=5)
 
             # Prevent this from catching as APIError
             if response.status_code == 200:
                 return response.json()
-
 
         # This will handle the error if max_retries is exceeded
         if response.status_code != 307:
