@@ -66,6 +66,7 @@ MAXIMUM_TEMPERATURE_C = 32
 # Disables unverified HTTPS warnings
 urllib3.disable_warnings()
 
+
 class APIError(Exception):
     def __init__(self, response, msg=None):
         try:
