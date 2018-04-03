@@ -63,6 +63,8 @@ MAXIMUM_TEMPERATURE_F = 90
 MINIMUM_TEMPERATURE_C = 9
 MAXIMUM_TEMPERATURE_C = 32
 
+# Disables unverified HTTPS warnings
+urllib3.disable_warnings()
 
 class APIError(Exception):
     def __init__(self, response, msg=None):
