@@ -28,7 +28,7 @@ setup(name='python-nest',
                         'six>=1.10.0',
                         'python-dateutil',
                         'urllib3',
-                        'sseclient-py>=1.7'],
+                        'sseclient-py'],
       entry_points={
           'console_scripts': ['nest=nest.command_line:main'],
       }
