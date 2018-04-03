@@ -11,7 +11,7 @@ from setuptools import setup
 #                Bumping Minor means API bugfix or new functionality.
 #                Bumping Micro means CLI change of any kind unless it is
 #                    significant enough to warrant a minor/major bump.
-version = '3.7.0'
+version = '3.8.0'
 
 
 setup(name='python-nest',
@@ -27,7 +27,7 @@ setup(name='python-nest',
       install_requires=['requests>=1.0.0',
                         'six>=1.10.0',
                         'python-dateutil',
-                        'sseclient-py'],
+                        'sseclient-py>=1.7.0'],
       entry_points={
           'console_scripts': ['nest=nest.command_line:main'],
       }
