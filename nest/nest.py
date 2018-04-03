@@ -68,7 +68,7 @@ class APIError(Exception):
     def __init__(self, response, msg=None):
         try:
             response_content = response.content
-        except:
+        except AttributeError:
             response_content = response.data
 
         if response_content != b'':
@@ -79,8 +79,8 @@ class APIError(Exception):
                 message = "API Error Occured"
         else:
             message = "API Error Occured"
-        
-        if msg != None:
+
+        if msg is not None:
             message = "API Error Occured: " + msg
 
         # Call the base class constructor with the parameters it needs
@@ -93,22 +93,22 @@ class AuthorizationError(Exception):
     def __init__(self, response, msg=None):
         try:
             response_content = response.content
-        except:
+        except AttributeError:
             response_content = response.data
 
         if response_content != b'':
             if isinstance(response, requests.Response):
                 message = response.json().get(
-                'error_description',
-                "Authorization Failed")
+                    'error_description',
+                    "Authorization Failed")
             elif isinstance(response, urllib3.HTTPResponse):
                 # cant figure out a way to get error description with urrllib3
                 message = "Authorization Failed"
-            
+
         else:
             message = "Authorization failed"
-        
-        if msg != None:
+
+        if msg is not None:
             message = "Authorization Failed: " + msg
 
         # Call the base class constructor with the parameters it needs
@@ -1550,7 +1550,8 @@ class Structure(NestBase):
 
 
 class Nest(object):
-    def __init__(self, username=None, password=None, # cache_ttl=270,
+    def __init__(self, username=None, password=None, 
+                # cache_ttl=270,
                  user_agent=None,
                  access_token=None, access_token_cache_file=None,
                  local_time=False,
@@ -1589,7 +1590,8 @@ class Nest(object):
         auth = NestAuth(client_id=self._client_id,
                         client_secret=self._client_secret,
                         session=self._session, access_token=access_token,
-                        access_token_cache_file=access_token_cache_file, auth_callback=auth_callback)
+                        access_token_cache_file=access_token_cache_file, 
+                        auth_callback=auth_callback)
         self._session.auth = auth
 
     @property
@@ -1613,7 +1615,7 @@ class Nest(object):
     @property
     def client_version_out_of_date(self):
         if self._product_version is not None:
-#            self._bust_cache()
+            # self._bust_cache()
             try:
                 return self.client_version < self._product_version
             # an error means they need to authorize anyways
@@ -1634,7 +1636,8 @@ class Nest(object):
     def access_token(self):
         return self._access_token or self._session.auth.access_token
 
-    def _handle_ratelimit(self, res, verb, url, data, max_retries=10, default_wait=5):
+    def _handle_ratelimit(self, res, verb, url, data, 
+                          max_retries=10, default_wait=5):
         response = res
         retries = 0
         while response.status_code == 429 and retries <= max_retries:
@@ -1650,18 +1653,20 @@ class Nest(object):
                 # If not:
                 try:
                     # Checks if retry_after is a HTTP date
-                    wait = (datetime.datetime.now() - parse_time(retry_after)).total_seconds()
+                    now = datetime.datetime.now()
+                    wait = (now - parse_time(retry_after)).total_seconds()
                 except ValueError:
                     # Does nothing and uses default (shouldn't happen)
                     pass
-            
+
             time.sleep(wait)
             response = self._session.request(verb, url,
-                                        allow_redirects=False,
-                                        data=data)
+                                             allow_redirects=False,
+                                             data=data)
         return response
 
-    def _handle_ratelimit_stream(self, res, url, headers, max_retries=10, default_wait=5):
+    def _handle_ratelimit_stream(self, res, url, headers,
+                                 max_retries=10, default_wait=5):
         response = res
         retries = 0
         while response.status == 429 and retries <= max_retries:
@@ -1677,16 +1682,17 @@ class Nest(object):
                 # If not:
                 try:
                     # Checks if retry_after is a HTTP date
-                    wait = (datetime.datetime.now() - parse_time(retry_after)).total_seconds()
+                    now = datetime.datetime.now()
+                    wait = (now - parse_time(retry_after)).total_seconds()
                 except ValueError:
                     # Does nothing and uses default (shouldn't happen)
                     pass
-            
+
             time.sleep(wait)
-            response = self._http.request('GET', url, headers=headers, preload_content=False)
+            response = self._http.request('GET', url, headers=headers, 
+                                          preload_content=False)
 
         return response
-
 
     def _open_data_stream(self, path="/"):
         url = "%s%s" % (API_URL, path)
@@ -1696,25 +1702,34 @@ class Nest(object):
             'Authorization': "Bearer {0}".format(self.access_token),
             'Accept': 'text/event-stream'
         }
-        response = self._http.request('GET', url, headers=headers, preload_content=False)
+        response = self._http.request('GET', url, headers=headers, 
+                                      preload_content=False)
 
         if response.status == 401:
             raise AuthorizationError(response)
 
         if response.status == 429:
-            response = self._handle_ratelimit_stream(response, url, headers, max_retries=10, default_wait=5)
+            response = self._handle_ratelimit_stream(response, url, headers, 
+                                                     max_retries=10,
+                                                     default_wait=5)
 
         if response.status == 307:
             redirect_url = response.headers['Location']
-            response = self._http.request('GET', redirect_url, headers=headers, preload_content=False)
+            response = self._http.request('GET', redirect_url, headers=headers,
+                                          preload_content=False)
             if response.status_code == 429:
-                response = self._handle_ratelimit_stream(response, url, headers, max_retries=10, default_wait=5)
-        
+                response = self._handle_ratelimit_stream(response, url,
+                                                         headers,
+                                                         max_retries=10, 
+                                                         default_wait=5)
+
         client = sseclient.SSEClient(response)
 
         ready_event = threading.Event()
         self._queue = collections.deque(maxlen=2)
-        event_thread = threading.Thread(target=self._start_event_loop, args=(client.events(), self._queue, ready_event))
+        event_thread = threading.Thread(target=self._start_event_loop, 
+                                        args=(client.events(),
+                                        self._queue, ready_event))
         event_thread.setDaemon(True)
         event_thread.start()
         ready_event.wait(timeout=10)
@@ -1727,13 +1742,13 @@ class Nest(object):
             elif event_type == 'put':
                 queue.appendleft(json.loads(event.data))
             elif event_type == 'auth_revoked':
-                raise AuthorizationError(None, msg='The API authorization has been revoked')
+                raise AuthorizationError(None, 
+                                         msg='Auth token has been revoked')
             elif event_type == 'error':
                 raise APIError(None, msg=event.data)
 
             if not ready_event.is_set():
                 ready_event.set()
-            
 
     def _request(self, verb, path="/", data=None):
         url = "%s%s" % (API_URL, path)
@@ -1752,8 +1767,9 @@ class Nest(object):
 
         # Rate Limit Exceeded Catch
         if response.status_code == 429:
-            
-            response = self._handle_ratelimit(response, verb, url, data, max_retries=10, default_wait=5)
+            response = self._handle_ratelimit(response, verb, url, data, 
+                                              max_retries=10,
+                                              default_wait=5)
 
             # Prevent this from catching as APIError
             if response.status_code == 200:
@@ -1768,10 +1784,12 @@ class Nest(object):
         response = self._session.request(verb, redirect_url,
                                          allow_redirects=False,
                                          data=data)
-        
+
         # Rate Limit Exceeded Catch
         if response.status_code == 429:
-            response = self._handle_ratelimit(response, verb, redirect_url, data, max_retries=10, default_wait=5)
+            response = self._handle_ratelimit(response, verb, redirect_url,
+                                              data, max_retries=10,
+                                              default_wait=5)
 
         # This will handle the error if max_retries is exceeded
         if 400 <= response.status_code < 600:
