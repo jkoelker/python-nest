@@ -1729,7 +1729,7 @@ class Nest(object):
         self._queue = collections.deque(maxlen=2)
         event_thread = threading.Thread(target=self._start_event_loop,
                                         args=(client.events(),
-                                        self._queue, ready_event))
+                                              self._queue, ready_event))
         event_thread.setDaemon(True)
         event_thread.start()
         ready_event.wait(timeout=10)
