@@ -10,7 +10,7 @@ install:
 before_script:
   - "flake8 --show-source --builtins=_ nest"
 script:
-  - python setup.py install
+  - pip install .
   - python setup.py sdist
 deploy:
   - provider: pypi
