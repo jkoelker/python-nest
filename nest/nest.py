@@ -200,7 +200,7 @@ class NestBase(object):
         path = '/%s/%s' % (what, self._serial)
 
         response = self._nest_api._put(path=path, data=data)
-        self._nest_api._bust_cache()
+        # self._nest_api._bust_cache()
 
         return response
 
