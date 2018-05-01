@@ -163,6 +163,7 @@ def handle_camera_show(device):
     print('Audio Enabled         : %s' % device.is_audio_enabled)
     print('Public Share Enabled  : %s' % device.is_public_share_enabled)
     print('Snapshot URL          : %s' % device.snapshot_url)
+    print('Nest Web App URL      : %s' % device.web_url)
 
 
 def handle_camera_streaming(device, args):
