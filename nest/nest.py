@@ -4,11 +4,11 @@ import collections
 import copy
 import datetime
 import hashlib
+import threading
 import time
 import os
 import uuid
 import weakref
-import threading
 
 from dateutil.parser import parse as parse_time
 
@@ -18,7 +18,6 @@ from requests import adapters
 from requests.compat import json
 
 import sseclient
-import urllib3
 
 ACCESS_TOKEN_URL = 'https://api.home.nest.com/oauth2/access_token'
 AUTHORIZE_URL = 'https://home.nest.com/login/oauth2?client_id={0}&state={1}'
@@ -63,9 +62,6 @@ MAXIMUM_TEMPERATURE_F = 90
 MINIMUM_TEMPERATURE_C = 9
 MAXIMUM_TEMPERATURE_C = 32
 
-# Disables unverified HTTPS warnings
-urllib3.disable_warnings()
-
 
 class APIError(Exception):
     def __init__(self, response, msg=None):
@@ -77,9 +73,6 @@ class APIError(Exception):
         if response_content != b'':
             if isinstance(response, requests.Response):
                 message = response.json()['error']
-            elif isinstance(response, urllib3.HTTPResponse):
-                # cant figure out a way to get error description with urrllib3
-                message = "API Error Occured"
         else:
             message = "API Error Occured"
 
@@ -104,10 +97,6 @@ class AuthorizationError(Exception):
                 message = response.json().get(
                     'error_description',
                     "Authorization Failed")
-            elif isinstance(response, urllib3.HTTPResponse):
-                # cant figure out a way to get error description with urrllib3
-                message = "Authorization Failed"
-
         else:
             message = "Authorization failed"
 
@@ -1568,6 +1557,9 @@ class Nest(object):
         self._staff = False
         self._superuser = False
         self._email = None
+        self._queue = collections.deque(maxlen=2)
+        self._event_thread = None
+        self._update_event = threading.Event()
 
 #        self._cache_ttl = cache_ttl
 #        self._cache = (None, 0)
@@ -1578,24 +1570,21 @@ class Nest(object):
         if user_agent:
             raise ValueError("user_agent no longer supported")
 
-        def auth_callback(result):
-            self._access_token = result['access_token']
-            self._open_data_stream()
-
         self._access_token = access_token
         self._client_id = client_id
         self._client_secret = client_secret
         self._product_version = product_version
 
-        # Possible to merge pools?
-        self._http = urllib3.PoolManager()
         self._session = requests.Session()
         auth = NestAuth(client_id=self._client_id,
                         client_secret=self._client_secret,
                         session=self._session, access_token=access_token,
-                        access_token_cache_file=access_token_cache_file,
-                        auth_callback=auth_callback)
+                        access_token_cache_file=access_token_cache_file)
         self._session.auth = auth
+
+    @property
+    def update_event(self):
+        return self._update_event
 
     @property
     def authorization_required(self):
@@ -1640,7 +1629,8 @@ class Nest(object):
         return self._access_token or self._session.auth.access_token
 
     def _handle_ratelimit(self, res, verb, url, data,
-                          max_retries=10, default_wait=5):
+                          max_retries=10, default_wait=5,
+                          stream=False, headers=None):
         response = res
         retries = 0
         while response.status_code == 429 and retries <= max_retries:
@@ -1665,85 +1655,61 @@ class Nest(object):
             time.sleep(wait)
             response = self._session.request(verb, url,
                                              allow_redirects=False,
+                                             stream=stream,
+                                             headers=headers,
                                              data=data)
-        return response
-
-    def _handle_ratelimit_stream(self, res, url, headers,
-                                 max_retries=10, default_wait=5):
-        response = res
-        retries = 0
-        while response.status == 429 and retries <= max_retries:
-            retries += 1
-            retry_after = response.headers['Retry-After']
-            # Default Retry Time
-            wait = default_wait
-
-            try:
-                # Checks if retry_after is a number
-                wait = float(retry_after)
-            except ValueError:
-                # If not:
-                try:
-                    # Checks if retry_after is a HTTP date
-                    now = datetime.datetime.now()
-                    wait = (now - parse_time(retry_after)).total_seconds()
-                except ValueError:
-                    # Does nothing and uses default (shouldn't happen)
-                    pass
-
-            time.sleep(wait)
-            response = self._http.request('GET', url, headers=headers,
-                                          preload_content=False)
-
         return response
 
     def _open_data_stream(self, path="/"):
         url = "%s%s" % (API_URL, path)
 
         # Opens the data stream
-        headers = {
-            'Authorization': "Bearer {0}".format(self.access_token),
-            'Accept': 'text/event-stream'
-        }
-        response = self._http.request('GET', url, headers=headers,
-                                      preload_content=False)
+        headers = {'Accept': 'text/event-stream'}
+        response = self._session.get(url, stream=True, headers=headers,
+                                     allow_redirects=False)
 
-        if response.status == 401:
+        if response.status_code == 401:
             raise AuthorizationError(response)
 
-        if response.status == 429:
-            response = self._handle_ratelimit_stream(response, url, headers,
-                                                     max_retries=10,
-                                                     default_wait=5)
+        if response.status_code == 429:
+            response = self._handle_ratelimit(response, 'GET', url, None,
+                                              max_retries=10,
+                                              default_wait=5,
+                                              stream=True,
+                                              headers=headers)
 
-        if response.status == 307:
+        if response.status_code == 307:
             redirect_url = response.headers['Location']
-            response = self._http.request('GET', redirect_url, headers=headers,
-                                          preload_content=False)
+            response = self._session.get(redirect_url,
+                                         allow_redirects=False,
+                                         headers=headers,
+                                         stream=True)
             if response.status_code == 429:
-                response = self._handle_ratelimit_stream(response, url,
-                                                         headers,
-                                                         max_retries=10,
-                                                         default_wait=5)
-
-        client = sseclient.SSEClient(response)
+                response = self._handle_ratelimit(response, 'GET', url, None,
+                                                  max_retries=10,
+                                                  default_wait=5,
+                                                  stream=True,
+                                                  headers=headers)
 
         ready_event = threading.Event()
-        self._queue = collections.deque(maxlen=2)
-        event_thread = threading.Thread(target=self._start_event_loop,
-                                        args=(client.events(),
-                                              self._queue, ready_event))
-        event_thread.setDaemon(True)
-        event_thread.start()
+        self._event_thread = threading.Thread(target=self._start_event_loop,
+                                              args=(response,
+                                                    self._queue,
+                                                    ready_event,
+                                                    self._update_event))
+        self._event_thread.setDaemon(True)
+        self._event_thread.start()
         ready_event.wait(timeout=10)
 
-    def _start_event_loop(self, events, queue, ready_event):
-        for event in events:
+    def _start_event_loop(self, response, queue, ready_event, update_event):
+        client = sseclient.SSEClient(response.iter_content())
+        for event in client.events():
             event_type = event.event
-            if event_type == 'open':
+            if event_type == 'open' or event_type == 'keep-alive':
                 pass
             elif event_type == 'put':
                 queue.appendleft(json.loads(event.data))
+                update_event.set()
             elif event_type == 'auth_revoked':
                 raise AuthorizationError(None,
                                          msg='Auth token has been revoked')
@@ -1752,6 +1718,8 @@ class Nest(object):
 
             if not ready_event.is_set():
                 ready_event.set()
+        response.close()
+        queue.clear()
 
     def _request(self, verb, path="/", data=None):
         url = "%s%s" % (API_URL, path)
@@ -1823,6 +1791,9 @@ class Nest(object):
 
         return value
         '''
+        if len(self._queue) == 0 or not self._queue[0]:
+            self._open_data_stream("/")
+
         value = self._queue[0]['data']
         if not value:
             value = self._get("/")

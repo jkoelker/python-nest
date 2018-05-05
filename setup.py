@@ -27,8 +27,7 @@ setup(name='python-nest',
       install_requires=['requests>=1.0.0',
                         'six>=1.10.0',
                         'sseclient-py',
-                        'python-dateutil',
-                        'urllib3'],
+                        'python-dateutil'],
       entry_points={
           'console_scripts': ['nest=nest.command_line:main'],
       }
