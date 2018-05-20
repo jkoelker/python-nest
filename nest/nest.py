@@ -1560,6 +1560,7 @@ class Nest(object):
         self._queue = collections.deque(maxlen=2)
         self._event_thread = None
         self._update_event = threading.Event()
+        self._queue_lock = threading.Lock()
 
 #        self._cache_ttl = cache_ttl
 #        self._cache = (None, 0)
@@ -1791,10 +1792,14 @@ class Nest(object):
 
         return value
         '''
+        self._queue_lock.acquire()
         if len(self._queue) == 0 or not self._queue[0]:
             self._open_data_stream("/")
+        self._queue_lock.release()
 
+        self._queue_lock.acquire(False)
         value = self._queue[0]['data']
+        self._queue_lock.release()
         if not value:
             value = self._get("/")
 
