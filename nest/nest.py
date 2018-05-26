@@ -189,7 +189,6 @@ class NestBase(object):
         path = '/%s/%s' % (what, self._serial)
 
         response = self._nest_api._put(path=path, data=data)
-        # self._nest_api._bust_cache()
 
         return response
 
@@ -1782,16 +1781,6 @@ class Nest(object):
 
     @property
     def _status(self):
-        '''
-        value, last_update = self._cache
-        now = time.time()
-
-        if not value or now - last_update > self._cache_ttl:
-            value = self._get("/")
-            self._cache = (value, now)
-
-        return value
-        '''
         self._queue_lock.acquire()
         if len(self._queue) == 0 or not self._queue[0]:
             self._open_data_stream("/")
@@ -1816,11 +1805,6 @@ class Nest(object):
     @property
     def _devices(self):
         return self._status[DEVICES]
-
-    '''
-    def _bust_cache(self):
-        self._cache = (None, 0)
-    '''
 
     @property
     def devices(self):
