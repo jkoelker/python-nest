@@ -14,6 +14,9 @@ Installation
     [sudo] pip install python-nest
 
 
+*NOTE* The ``4.x`` version uses the streaming endpoint. To use the older
+polling/caching behavior pin your requirements to ``python-nest<4.0``.
+
 *NOTE* The ``3.x`` version uses the Nest official api. As such, some functionality
 was removed as it is not available. To keep the old version and functionality, make sure to set
 your requirements to ``python-nest<3.0``.
