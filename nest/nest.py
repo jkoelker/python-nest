@@ -1781,9 +1781,7 @@ class Nest(object):
             self._open_data_stream("/")
         self._queue_lock.release()
 
-        self._queue_lock.acquire(False)
         value = self._queue[0]['data']
-        self._queue_lock.release()
         if not value:
             value = self._get("/")
 
