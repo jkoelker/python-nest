@@ -55,6 +55,11 @@ def parse_args():
     parser.add_argument('--client-secret', dest='client_secret',
                         help='product secret for nest.com', metavar='SECRET')
 
+    parser.add_argument('-k', '--keep-alive', dest='keep_alive',
+                        action='store_true',
+                        help='keep showing update received from stream API '
+                             'in show and camera-show commands')
+
     parser.add_argument('-c', '--celsius', dest='celsius', action='store_true',
                         help='use celsius instead of farenheit')
 
@@ -148,22 +153,27 @@ def get_device(napi, args, structure):
         return structure.cameras[args.index]
 
 
-def handle_camera_show(device):
-    print('Device                : %s' % device.name)
-    # print('Model               : %s' % device.model) # Doesn't seem to work
-    print('Serial                : %s' % device.serial)
-    print('Where                 : %s' % device.where)
-    print('Where ID              : %s' % device.where_id)
+def handle_camera_show(device, print_prompt, print_meta_data=True):
+    if print_meta_data:
+        print('Device                : %s' % device.name)
+        # print('Model               : %s' % device.model) # Doesn't work
+        print('Serial                : %s' % device.serial)
+        print('Where                 : %s' % device.where)
+        print('Where ID              : %s' % device.where_id)
+        print('Video History Enabled : %s' % device.is_video_history_enabled)
+        print('Audio Enabled         : %s' % device.is_audio_enabled)
+        print('Public Share Enabled  : %s' % device.is_public_share_enabled)
+        print('Snapshot URL          : %s' % device.snapshot_url)
+        print('Nest Web App URL      : %s' % device.web_url)
+
     print('Away                  : %s' % device.structure.away)
     print('Sound Detected        : %s' % device.sound_detected)
     print('Motion Detected       : %s' % device.motion_detected)
     print('Person Detected       : %s' % device.person_detected)
     print('Streaming             : %s' % device.is_streaming)
-    print('Video History Enabled : %s' % device.is_video_history_enabled)
-    print('Audio Enabled         : %s' % device.is_audio_enabled)
-    print('Public Share Enabled  : %s' % device.is_public_share_enabled)
-    print('Snapshot URL          : %s' % device.snapshot_url)
-    print('Nest Web App URL      : %s' % device.web_url)
+
+    if print_prompt:
+        print('Press Ctrl+C to EXIT')
 
 
 def handle_camera_streaming(device, args):
@@ -179,9 +189,61 @@ def handle_camera_commands(napi, args):
     structure = get_structure(napi, args)
     device = get_device(napi, args, structure)
     if args.command == "camera-show":
-        handle_camera_show(device)
+        handle_camera_show(device, args.keep_alive)
+        if args.keep_alive:
+            try:
+                napi.update_event.clear()
+                while napi.update_event.wait():
+                    napi.update_event.clear()
+                    handle_camera_show(device, True, False)
+            except KeyboardInterrupt:
+                return
     elif args.command == "camera-streaming":
         handle_camera_streaming(device, args)
+
+
+def handle_show_commands(napi, device, display_temp, print_prompt,
+                         print_meta_data=True):
+    if print_meta_data:
+        # TODO should pad key? old code put : out 35
+        print('Device: %s' % device.name)
+        print('Where: %s' % device.where)
+        print('Can Heat              : %s' % device.can_heat)
+        print('Can Cool              : %s' % device.can_cool)
+        print('Has Humidifier        : %s' % device.has_humidifier)
+        print('Has Dehumidifier      : %s' % device.has_humidifier)
+        print('Has Fan               : %s' % device.has_fan)
+        print('Has Hot Water Control : %s' % device.has_hot_water_control)
+
+    print('Away                  : %s' % device.structure.away)
+    print('Mode                  : %s' % device.mode)
+    print('State                 : %s' % device.hvac_state)
+    if device.has_fan:
+        print('Fan                   : %s' % device.fan)
+        print('Fan Timer             : %s' % device.fan_timer)
+    if device.has_hot_water_control:
+        print('Hot Water Temp        : %s' % device.fan)
+    print('Temp                  : %0.1f%s' % (device.temperature,
+          device.temperature_scale))
+    helpers.print_if('Humidity              : %0.1f%%', device.humidity)
+    if isinstance(device.target, tuple):
+        print('Target                 : %0.1f-%0.1f%s' % (
+            display_temp(device.target[0]),
+            display_temp(device.target[1]),
+            device.temperature_scale))
+    else:
+        print('Target                : %0.1f%s' %
+              (display_temp(device.target), device.temperature_scale))
+
+    print('Away Heat             : %0.1f%s' %
+          (display_temp(device.eco_temperature[0]), device.temperature_scale))
+    print('Away Cool             : %0.1f%s' %
+          (display_temp(device.eco_temperature[1]), device.temperature_scale))
+
+    print('Has Leaf              : %s' % device.has_leaf)
+
+    if print_prompt:
+        print('Press Ctrl+C to EXIT')
 
 
 def main():
@@ -335,43 +397,16 @@ def main():
                 print('%0.1f' % display_temp(target))
 
         elif cmd == 'show':
-            # TODO should pad key? old code put : out 35
-            print('Device: %s' % device.name)
-            print('Where: %s' % device.where)
-            print('Away                  : %s' % device.structure.away)
-            print('Mode                  : %s' % device.mode)
-            print('State                 : %s' % device.hvac_state)
-            print('Can Heat              : %s' % device.can_heat)
-            print('Can Cool              : %s' % device.can_cool)
-            print('Has Humidifier        : %s' % device.has_humidifier)
-            print('Has Dehumidifier      : %s' % device.has_humidifier)
-            print('Has Fan               : %s' % device.has_fan)
-            if device.has_fan:
-                print('Fan                   : %s' % device.fan)
-                print('Fan Timer             : %s' % device.fan_timer)
-            print('Has Hot Water Control : %s' % device.has_hot_water_control)
-            if device.has_hot_water_control:
-                print('Hot Water Temp        : %s' % device.fan)
-            print('Temp                  : %0.1f%s' % (device.temperature,
-                  device.temperature_scale))
-            helpers.print_if('Humidity              : %0.1f%%',
-                             device.humidity)
-            if isinstance(device.target, tuple):
-                print('Target                 : %0.1f-%0.1f%s' % (
-                    display_temp(device.target[0]),
-                    display_temp(device.target[1]),
-                    device.temperature_scale))
-            else:
-                print('Target                : %0.1f%s' %
-                      (display_temp(device.target), device.temperature_scale))
-
-            helpers.print_if('Away Heat             : %0.1fC',
-                             device.eco_temperature[0])
-
-            helpers.print_if('Away Cool             : %0.1fC',
-                             device.eco_temperature[1])
-
-            print('Has Leaf              : %s' % device.has_leaf)
+            handle_show_commands(napi, device, display_temp, args.keep_alive)
+            if args.keep_alive:
+                try:
+                    napi.update_event.clear()
+                    while napi.update_event.wait():
+                        napi.update_event.clear()
+                        handle_show_commands(napi, device, display_temp,
+                                             True, False)
+                except KeyboardInterrupt:
+                    return
 
 
 if __name__ == '__main__':
