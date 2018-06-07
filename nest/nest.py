@@ -1319,6 +1319,10 @@ class Camera(Device):
         else:
             return SIMULATOR_SNAPSHOT_PLACEHOLDER_URL
 
+    @property
+    def web_url(self):
+        return self._device.get('web_url')
+
 
 class Structure(NestBase):
     @property
