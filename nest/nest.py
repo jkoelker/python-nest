@@ -228,6 +228,9 @@ class Device(NestBase):
 
         return self.where
 
+    def __str__(self):
+        return str(self._device)
+
     @property
     def name(self):
         return self._device.get('name')
@@ -1328,6 +1331,9 @@ class Structure(NestBase):
     @property
     def _structure(self):
         return self._nest_api._status[STRUCTURES][self._serial]
+
+    def __str__(self):
+        return str(self._structure)
 
     def _set_away(self, value, auto_away=False):
         self._set('structures', {'away': AWAY_MAP[value]})
