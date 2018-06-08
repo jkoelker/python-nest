@@ -1511,6 +1511,29 @@ class Structure(NestBase):
     def eta_begin(self):
         if 'eta_begin' in self._structure:
             return parse_time(self._structure['eta_begin'])
+    
+    def set_eta(self, trip_id, eta_begin, eta_end=None):
+        """
+        Set estimated arrival winow, use same trip_id to update estimation.
+        Nest may choose ignore inaccurate estimation.
+        See: https://developers.nest.com/documentation/cloud/away-guide
+             #make_an_eta_write_call
+        """
+        if self.num_thermostats == 0:
+            raise ValueError("ETA can only be set when Thermostat is in the"
+                             " structure.")
+        if trip_id is None:
+            raise ValueError("trip_id must be not None")
+        if eta_begin is None:
+            raise ValueError("eta_begin must be not None")
+        if eta_end is None:
+            # set default eta window to 1 minute
+            eta_end = eta_begin + datetime.timedelta(0, 60)
+
+        data = {'trip_id': trip_id,
+                'estimated_arrival_window_begin': eta_begin.isoformat(),
+                'estimated_arrival_window_end': eta_end.isoformat()}
+        self._set('structures', {'eta': data})
 
     @property
     def wheres(self):

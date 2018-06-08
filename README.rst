@@ -283,6 +283,9 @@ Command line
         nest --conf myconfig --client-id CLIENTID --client-secret SECRET --keep-alive show
         nest --conf myconfig --client-id CLIENTID --client-secret SECRET --keep-alive camera-show
 
+        # Set ETA 5 minutes from now
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET away --eta 5
+
 A configuration file must be specified and used for the credentials to communicate with the NEST Thermostat initially.  Once completed and a token is generated, if you're using the default location for the token, the command line option will read from it automatically.
 
 
