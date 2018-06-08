@@ -1549,6 +1549,16 @@ class Structure(NestBase):
         self.wheres = wheres
         return ident
 
+    @property
+    def security_state(self):
+        """
+        Return 'ok' or 'deter'. Need sercurity state ready permission.
+        Note: this is NOT for Net Secruity alarm system.
+        See https://developers.nest.com/documentation/cloud/security-guide
+        """
+        if 'wwn_security_state' in self._structure:
+            return self._structure['wwn_security_state']
+
 
 class Nest(object):
     def __init__(self, username=None, password=None,
