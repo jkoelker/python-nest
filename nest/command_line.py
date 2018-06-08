@@ -182,6 +182,8 @@ def handle_camera_show(device, print_prompt, print_meta_data=True):
     print('Motion Detected       : %s' % device.motion_detected)
     print('Person Detected       : %s' % device.person_detected)
     print('Streaming             : %s' % device.is_streaming)
+    if device.structure.security_state is not None:
+        print('Security State        : %s' % device.structure.security_state)
 
     if print_prompt:
         print('Press Ctrl+C to EXIT')

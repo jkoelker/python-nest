@@ -182,7 +182,7 @@ class NestBase(object):
         self._serial = serial
         self._nest_api = nest_api
 
-    def __repr__(self):
+    def __str__(self):
         return '<%s: %s>' % (self.__class__.__name__, self._repr_name)
 
     def _set(self, what, data):
@@ -227,6 +227,9 @@ class Device(NestBase):
             return self.name
 
         return self.where
+
+    def __repr__(self):
+        return str(self._device)
 
     @property
     def name(self):
@@ -893,15 +896,15 @@ class SmokeCoAlarm(Device):
 
     @property
     def smoke_sequence_number(self):
-        return self._device['smoke_sequence_number']
+        return self._device.get('smoke_sequence_number')
 
     @property
     def smoke_status(self):
-        return self._device['smoke_alarm_state']
+        return self._device.get('smoke_alarm_state')
 
     @property
     def software_version(self):
-        return self._device['software_version']
+        return self._device.get('software_version')
 
     @property
     def spoken_where_id(self):
@@ -963,7 +966,7 @@ class ActivityZone(NestBase):
     @property
     def _activity_zone(self):
         return next(
-            z for z in self._camera['activity_zones']
+            z for z in self._camera.get('activity_zones')
             if z['id'] == self.zone_id)
 
     @property
@@ -972,7 +975,7 @@ class ActivityZone(NestBase):
 
     @property
     def name(self):
-        return self._activity_zone['name']
+        return self._activity_zone.get('name')
 
 
 class CameraEvent(NestBase):
@@ -988,8 +991,11 @@ class CameraEvent(NestBase):
     def _event(self):
         return self._camera.get('last_event')
 
-    def __repr__(self):
+    def __str__(self):
         return '<%s>' % (self.__class__.__name__)
+
+    def __repr__(self):
+        return str(self._event)
 
     def activity_in_zone(self, zone_id):
         if 'activity_zone_ids' in self._event:
@@ -1185,7 +1191,7 @@ class Camera(Device):
 
     @property
     def model(self):
-        return self._device['model']
+        return self._device.get('model')
 
     @property
     def nexus_api_http_server_url(self):
@@ -1294,7 +1300,7 @@ class Camera(Device):
 
     @property
     def where_id(self):
-        return self._device['where_id']
+        return self._device.get('where_id')
 
     @property
     def wifi_ip_address(self):
@@ -1329,12 +1335,15 @@ class Structure(NestBase):
     def _structure(self):
         return self._nest_api._status[STRUCTURES][self._serial]
 
+    def __repr__(self):
+        return str(self._structure)
+
     def _set_away(self, value, auto_away=False):
         self._set('structures', {'away': AWAY_MAP[value]})
 
     @property
     def away(self):
-        return self._structure['away']
+        return self._structure.get('away')
 
     @away.setter
     def away(self, value):
@@ -1429,7 +1438,7 @@ class Structure(NestBase):
 
     @name.setter
     def name(self, value):
-        self._set('structure', {'name': value})
+        self._set('structures', {'name': value})
 
     @property
     def location(self):
@@ -1486,8 +1495,7 @@ class Structure(NestBase):
 
     @property
     def time_zone(self):
-        if 'time_zone' in self._structure:
-            return self._structure['time_zone']
+        return self._structure.get('time_zone')
 
     @property
     def peak_period_start_time(self):
@@ -1506,7 +1514,7 @@ class Structure(NestBase):
 
     @property
     def wheres(self):
-        return self._structure['wheres']
+        return self._structure.get('wheres')
 
     @wheres.setter
     def wheres(self, value):
@@ -1542,6 +1550,15 @@ class Structure(NestBase):
 
         self.wheres = wheres
         return ident
+
+    @property
+    def security_state(self):
+        """
+        Return 'ok' or 'deter'. Need sercurity state ready permission.
+        Note: this is NOT for Net Secruity alarm system.
+        See https://developers.nest.com/documentation/cloud/security-guide
+        """
+        return self._structure.get('wwn_security_state')
 
 
 class Nest(object):
