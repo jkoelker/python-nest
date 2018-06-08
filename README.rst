@@ -172,13 +172,15 @@ Command line
 .. code-block:: bash
 
     usage: nest [-h] [--conf FILE] [--token-cache TOKEN_CACHE_FILE] [-t TOKEN]
-                [--client-id CLIENTID] [--client-secret SECRET] [-c] [-s SERIAL] [-i INDEX]
-                {temp,fan,mode,away,target,humid,target_hum,show} ...
+                [--client-id ID] [--client-secret SECRET] [-k] [-c] [-s SERIAL]
+                [-S STRUCTURE] [-i INDEX]
+                {temp,fan,mode,away,target,humid,target_hum,show,camera-show,camera-streaming,protect-show}
+                ...
 
     Command line interface to Nest™ Thermostats
 
     positional arguments:
-      {temp,fan,mode,away,target,humid,target_hum,show}
+    {temp,fan,mode,away,target,humid,target_hum,show,camera-show,camera-streaming,protect-show}
                             command help
         temp                show/set temperature
         fan                 set fan "on" or "auto"
@@ -186,13 +188,11 @@ Command line
         away                show/set current away status
         target              show current temp target
         humid               show current humidity
-        target_hum          show/set target humidity
-                                specify target humidity value or auto to auto-select a
-                                humidity based on outside temp
+        target_hum          show/set target humidty
         show                show everything
         camera-show         show everything (for cameras)
         camera-streaming    show/set camera streaming
-
+        protect-show        show everything (for Nest Protect)
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -204,6 +204,8 @@ Command line
       --client-id ID        product id on developer.nest.com
       --client-secret SECRET
                             product secret for nest.com
+      -k, --keep-alive      keep showing update received from stream API in show
+                            and camera-show commands
       -c, --celsius         use celsius instead of farenheit
       -s SERIAL, --serial SERIAL
                             optional, specify serial number of nest thermostat to
