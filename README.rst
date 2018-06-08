@@ -61,15 +61,17 @@ Migrate to 4.x
 --------------
 The version 4.x uses `Nest Stream API <https://developers.nest.com/documentation/cloud/rest-streaming-guide>`_, so that you can get nearly real time status update of your Nest devices.
 
-If you use python-nest as a command line tool, you don't need to change, but there is a new command line option --keep-alive you can give a try.
+If you use python-nest as a command line tool:
+    You don't need to change, but there is a new command line option --keep-alive you can give a try.
 
 If you use python-nest in a poll loop, to query Nest device's property in certain period, there are several noticeable changes:
     - The internal cache removed, the Structure and Device objects will always return their current state presented in Nest API. 
     - A persistence HTTP connection will keep open for each Nest object. Therefore, please avoid to create more than one Nest object in your program.
     - Your poll query would not hit the API rate limit, you can increase your poll frequency.
 
-If you want to change to Push mode, you need to listen Nest.update_event. 
-Please note, any data change in all of your structures an devices will set the update_event. You don't know which field got update.
+If you want to change to Push mode:
+    You need to listen Nest.update_event. 
+    Please note, any data change in all of your structures an devices will set the update_event. You don't know which field got update.
 
 .. code-block:: python
 
@@ -81,7 +83,8 @@ Please note, any data change in all of your structures an devices will set the u
         # assume you have one Nest Camera
         print (napi.structures[0].cameras[0].motion_detected)
 
-If you use asyncio, you have to wrap napi.update_event.wait() in an ThreadPoolExecutor, for example:
+If you use asyncio:
+    You have to wrap napi.update_event.wait() in an ThreadPoolExecutor, for example:
 
 .. code-block:: python
 
