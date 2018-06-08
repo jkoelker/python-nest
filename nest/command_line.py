@@ -8,6 +8,7 @@ nest.py -- a python interface to the Nest Thermostats
 from __future__ import print_function
 
 import argparse
+import datetime
 import os
 import sys
 import errno
@@ -20,7 +21,7 @@ from . import helpers
 from six.moves import input
 
 
-def parse_args():
+def get_parser():
     # Get Executable name
     prog = os.path.basename(sys.argv[0])
 
@@ -33,7 +34,7 @@ def parse_args():
                              help='config file (default %s)' % config_file,
                              metavar='FILE')
 
-    args, remaining_argv = conf_parser.parse_known_args()
+    args, _ = conf_parser.parse_known_args()
 
     defaults = helpers.get_config(config_path=args.conf)
 
@@ -108,6 +109,10 @@ def parse_args():
                             help='set away status to "away"')
     away_group.add_argument('--home', action='store_true', default=False,
                             help='set away status to "home"')
+    eta_group = away.add_argument_group()
+    eta_group.add_argument('--trip', dest='trip_id', help='trip information')
+    eta_group.add_argument('--eta', dest='eta', type=int,
+                           help='estimated arrival time from now, in minutes')
 
     subparsers.add_parser('target', help='show current temp target')
     subparsers.add_parser('humid', help='show current humidity')
@@ -134,8 +139,12 @@ def parse_args():
                                         action='store_true', default=False,
                                         help='Disable camera streaming')
 
+    # Protect parsers
+    subparsers.add_parser('protect-show',
+                          help='show everything (for Nest Protect)')
+
     parser.set_defaults(**defaults)
-    return parser.parse_args()
+    return parser
 
 
 def get_structure(napi, args):
@@ -146,11 +155,18 @@ def get_structure(napi, args):
     return napi.structures[0]
 
 
-def get_device(napi, args, structure):
+def get_camera(napi, args, structure):
     if args.serial:
         return nest.Camera(args.serial, napi)
     else:
         return structure.cameras[args.index]
+
+
+def get_smoke_co_alarm(napi, args, structure):
+    if args.serial:
+        return nest.SmokeCoAlarm(args.serial, napi)
+    else:
+        return structure.smoke_co_alarms[args.index]
 
 
 def handle_camera_show(device, print_prompt, print_meta_data=True):
@@ -164,12 +180,16 @@ def handle_camera_show(device, print_prompt, print_meta_data=True):
         print('Audio Enabled         : %s' % device.is_audio_enabled)
         print('Public Share Enabled  : %s' % device.is_public_share_enabled)
         print('Snapshot URL          : %s' % device.snapshot_url)
+        print('Nest Web App URL      : %s' % device.web_url)
 
     print('Away                  : %s' % device.structure.away)
     print('Sound Detected        : %s' % device.sound_detected)
     print('Motion Detected       : %s' % device.motion_detected)
     print('Person Detected       : %s' % device.person_detected)
     print('Streaming             : %s' % device.is_streaming)
+    if device.structure.security_state is not None:
+        print('Security State        : %s' % device.structure.security_state)
+
     if print_prompt:
         print('Press Ctrl+C to EXIT')
 
@@ -185,7 +205,7 @@ def handle_camera_streaming(device, args):
 
 def handle_camera_commands(napi, args):
     structure = get_structure(napi, args)
-    device = get_device(napi, args, structure)
+    device = get_camera(napi, args, structure)
     if args.command == "camera-show":
         handle_camera_show(device, args.keep_alive)
         if args.keep_alive:
@@ -198,6 +218,36 @@ def handle_camera_commands(napi, args):
                 return
     elif args.command == "camera-streaming":
         handle_camera_streaming(device, args)
+
+
+def handle_protect_show(device, print_prompt, print_meta_data=True):
+    if print_meta_data:
+        print('Device                : %s' % device.name)
+        print('Serial                : %s' % device.serial)
+        print('Where                 : %s' % device.where)
+        print('Where ID              : %s' % device.where_id)
+
+    print('CO Status             : %s' % device.co_status)
+    print('Smoke Status          : %s' % device.smoke_status)
+    print('Battery Health        : %s' % device.battery_health)
+    print('Color Status          : %s' % device.color_status)
+
+    if print_prompt:
+        print('Press Ctrl+C to EXIT')
+
+
+def handle_protect_show_commands(napi, args):
+    structure = get_structure(napi, args)
+    device = get_smoke_co_alarm(napi, args, structure)
+    handle_protect_show(device, args.keep_alive)
+    if args.keep_alive:
+        try:
+            napi.update_event.clear()
+            while napi.update_event.wait():
+                napi.update_event.clear()
+                handle_protect_show(device, True, False)
+        except KeyboardInterrupt:
+            return
 
 
 def handle_show_commands(napi, device, display_temp, print_prompt,
@@ -245,7 +295,14 @@ def handle_show_commands(napi, device, display_temp, print_prompt,
 
 
 def main():
-    args = parse_args()
+    parser = get_parser()
+    args = parser.parse_args()
+
+    # This is the command(s) passed to the command line utility
+    cmd = args.command
+    if cmd is None:
+        parser.print_help()
+        return
 
     def _identity(x):
         return x
@@ -264,9 +321,6 @@ def main():
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
-
-    # This is the command(s) passed to the command line utility
-    cmd = args.command
 
     token_cache = os.path.expanduser(args.token_cache)
 
@@ -290,6 +344,10 @@ def main():
 
         if cmd.startswith("camera"):
             return handle_camera_commands(napi, args)
+
+        elif cmd == 'protect-show':
+            return handle_protect_show_commands(napi, args)
+
         elif cmd == 'away':
             structure = None
 
@@ -315,6 +373,16 @@ def main():
 
             if args.away:
                 structure.away = True
+                if args.eta:
+                    eta = datetime.datetime.utcnow() \
+                          + datetime.timedelta(minutes=args.eta)
+                    if args.trip_id is None:
+                        dt = datetime.datetime.utcnow()
+                        ts = (dt - datetime.datetime(1970, 1, 1)) \
+                            / datetime.timedelta(seconds=1)
+                        args.trip_id = "trip_{}".format(round(ts))
+                    print("Set ETA %s for trip %s" % (eta, args.trip_id))
+                    structure.set_eta(args.trip_id, eta)
 
             elif args.home:
                 structure.away = False

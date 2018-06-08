@@ -57,6 +57,56 @@ You will need a Nest developer account, and a Product on the Nest developer port
 Usage
 =====
 
+Migrate to 4.x
+--------------
+The version 4.x uses `Nest Stream API <https://developers.nest.com/documentation/cloud/rest-streaming-guide>`_, so that you can get nearly real time status update of your Nest devices.
+
+If you use python-nest as a command line tool:
+    You don't need to change, but there is a new command line option ``--keep-alive`` you can give a try.
+
+If you use python-nest in a poll loop, to query Nest device's property in certain period, there are several noticeable changes:
+    - The internal cache removed, the ``Structure`` and ``Device`` objects will always return their current state presented in Nest API. 
+    - A persistence HTTP connection will keep open for each ``Nest`` object. Therefore, please avoid to create more than one Nest object in your program.
+    - Your poll query would not hit the API rate limit, you can increase your poll frequency.
+
+If you want to change to Push mode:
+    You need to listen ``Nest.update_event``. 
+    Please note, any data change in all of your structures an devices will set the ``update_event``. You don't know which field got update.
+
+.. code-block:: python
+
+    import nest
+
+    napi = nest.Nest(client_id=client_id, client_secret=client_secret, access_token_cache_file=access_token_cache_file)
+    while napi.update_event.wait():
+        napi.update_event.clear()
+        # assume you have one Nest Camera
+        print (napi.structures[0].cameras[0].motion_detected)
+
+If you use asyncio:
+    You have to wrap ``update_event.wait()`` in an ``ThreadPoolExecutor``, for example:
+
+.. code-block:: python
+
+    import asyncio
+    import nest
+
+    napi = nest.Nest(client_id=client_id, client_secret=client_secret, access_token_cache_file=access_token_cache_file)
+    event_loop = asyncio.get_event_loop()
+    try:
+        event_loop.run_until_complete(nest_update(event_loop, napi))
+    finally:
+        event_loop.close()
+
+    async def nest_update(loop, napi):
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            while True:
+                await loop.run_in_executor(executor, nest.update_event.wait)
+                nest.update_event.clear()
+                # assume you have one Nest Camera
+                print (napi.structures[0].cameras[0].motion_detected)
+
+
 Module
 ------
 
@@ -84,8 +134,8 @@ You can import the module as ``nest``.
     for structure in napi.structures:
         print ('Structure %s' % structure.name)
         print ('    Away: %s' % structure.away)
+        print ('    Security State: %s' % structure.security_state)
         print ('    Devices:')
-
         for device in structure.thermostats:
             print ('        Device: %s' % device.name)
             print ('            Temp: %0.1f' % device.temperature)
@@ -110,12 +160,11 @@ You can import the module as ``nest``.
             print ('            Target     : %0.1fC' % device.target)
             print ('            Eco High   : %0.1fC' % device.eco_temperature.high)
             print ('            Eco Low    : %0.1fC' % device.eco_temperature.low)
-
             print ('            hvac_emer_heat_state  : %s' % device.is_using_emergency_heat)
-
             print ('            online                : %s' % device.online)
 
     # The Nest object can also be used as a context manager
+    # It is only for demo purpose, please do not create more than one Nest object in your program especially after 4.0 release
     with nest.Nest(client_id=client_id, client_secret=client_secret, access_token_cache_file=access_token_cache_file) as napi:
         for device in napi.thermostats:
             device.temperature = 23
@@ -128,6 +177,7 @@ You can import the module as ``nest``.
     access_token_cache_file = 'nest.json'
     product_version = 1337
 
+    # It is only for demo purpose, please do not create more than one Nest object in your program especially after 4.0 release
     napi = nest.Nest(client_id=client_id, client_secret=client_secret, access_token_cache_file=access_token_cache_file, product_version=product_version)
 
     print("Never Authorized: %s" % napi.never_authorized)
@@ -172,13 +222,15 @@ Command line
 .. code-block:: bash
 
     usage: nest [-h] [--conf FILE] [--token-cache TOKEN_CACHE_FILE] [-t TOKEN]
-                [--client-id CLIENTID] [--client-secret SECRET] [-c] [-s SERIAL] [-i INDEX]
-                {temp,fan,mode,away,target,humid,target_hum,show} ...
+                [--client-id ID] [--client-secret SECRET] [-k] [-c] [-s SERIAL]
+                [-S STRUCTURE] [-i INDEX]
+                {temp,fan,mode,away,target,humid,target_hum,show,camera-show,camera-streaming,protect-show}
+                ...
 
     Command line interface to Nest™ Thermostats
 
     positional arguments:
-      {temp,fan,mode,away,target,humid,target_hum,show}
+    {temp,fan,mode,away,target,humid,target_hum,show,camera-show,camera-streaming,protect-show}
                             command help
         temp                show/set temperature
         fan                 set fan "on" or "auto"
@@ -186,13 +238,11 @@ Command line
         away                show/set current away status
         target              show current temp target
         humid               show current humidity
-        target_hum          show/set target humidity
-                                specify target humidity value or auto to auto-select a
-                                humidity based on outside temp
+        target_hum          show/set target humidty
         show                show everything
         camera-show         show everything (for cameras)
         camera-streaming    show/set camera streaming
-
+        protect-show        show everything (for Nest Protect)
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -204,6 +254,8 @@ Command line
       --client-id ID        product id on developer.nest.com
       --client-secret SECRET
                             product secret for nest.com
+      -k, --keep-alive      keep showing update received from stream API in show
+                            and camera-show commands
       -c, --celsius         use celsius instead of farenheit
       -s SERIAL, --serial SERIAL
                             optional, specify serial number of nest thermostat to
@@ -227,14 +279,21 @@ Command line
         nest --conf myconfig --client-id CLIENTID --client-secret SECRET camera-show
         nest --conf myconfig --client-id CLIENTID --client-secret SECRET camera-streaming --enable-camera-streaming
 
+        # Stream API example
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET --keep-alive show
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET --keep-alive camera-show
+
+        # Set ETA 5 minutes from now
+        nest --conf myconfig --client-id CLIENTID --client-secret SECRET away --away --eta 5
+
 A configuration file must be specified and used for the credentials to communicate with the NEST Thermostat initially.  Once completed and a token is generated, if you're using the default location for the token, the command line option will read from it automatically.
 
 
 .. code-block:: ini
 
     [NEST]
-    user = joe@user.com
-    password = swordfish
+    client-id = your_client_id
+    client-secret = your_client_secret
     token_cache = ~/.config/nest/token_cache
 
 
