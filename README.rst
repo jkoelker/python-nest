@@ -254,8 +254,6 @@ Command line
       --client-id ID        product id on developer.nest.com
       --client-secret SECRET
                             product secret for nest.com
-      -k, --keep-alive      keep showing update received from stream API in show
-                            and camera-show commands
       -c, --celsius         use celsius instead of farenheit
       -s SERIAL, --serial SERIAL
                             optional, specify serial number of nest thermostat to
