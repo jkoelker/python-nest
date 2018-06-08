@@ -1511,7 +1511,7 @@ class Structure(NestBase):
     def eta_begin(self):
         if 'eta_begin' in self._structure:
             return parse_time(self._structure['eta_begin'])
-    
+
     def set_eta(self, trip_id, eta_begin, eta_end=None):
         """
         Set estimated arrival winow, use same trip_id to update estimation.

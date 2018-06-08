@@ -113,7 +113,7 @@ def get_parser():
     eta_group.add_argument('--trip', dest='trip_id', help='trip information')
     eta_group.add_argument('--eta', dest='eta', type=int,
                            help='estimated arrival time from now, in minutes')
-    
+
     subparsers.add_parser('target', help='show current temp target')
     subparsers.add_parser('humid', help='show current humidity')
 
@@ -379,7 +379,7 @@ def main():
                     if args.trip_id is None:
                         dt = datetime.datetime.utcnow()
                         ts = (dt - datetime.datetime(1970, 1, 1)) \
-                             / datetime.timedelta(seconds=1)
+                            / datetime.timedelta(seconds=1)
                         args.trip_id = "trip_{}".format(round(ts))
                     print("Set ETA %s for trip %s" % (eta, args.trip_id))
                     structure.set_eta(args.trip_id, eta)
