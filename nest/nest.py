@@ -65,10 +65,13 @@ MAXIMUM_TEMPERATURE_C = 32
 
 class APIError(Exception):
     def __init__(self, response, msg=None):
-        try:
-            response_content = response.content
-        except AttributeError:
-            response_content = response.data
+        if response is None:
+            response_content = b''
+        else:
+            try:
+                response_content = response.content
+            except AttributeError:
+                response_content = response.data
 
         if response_content != b'':
             if isinstance(response, requests.Response):
@@ -87,10 +90,13 @@ class APIError(Exception):
 
 class AuthorizationError(Exception):
     def __init__(self, response, msg=None):
-        try:
-            response_content = response.content
-        except AttributeError:
-            response_content = response.data
+        if response is None:
+            response_content = b''
+        else:
+            try:
+                response_content = response.content
+            except AttributeError:
+                response_content = response.data
 
         if response_content != b'':
             if isinstance(response, requests.Response):
@@ -1741,24 +1747,30 @@ class Nest(object):
         ready_event.wait(timeout=10)
 
     def _start_event_loop(self, response, queue, ready_event, update_event):
-        client = sseclient.SSEClient(response.iter_content())
-        for event in client.events():
-            event_type = event.event
-            if event_type == 'open' or event_type == 'keep-alive':
-                pass
-            elif event_type == 'put':
-                queue.appendleft(json.loads(event.data))
-                update_event.set()
-            elif event_type == 'auth_revoked':
-                raise AuthorizationError(None,
-                                         msg='Auth token has been revoked')
-            elif event_type == 'error':
-                raise APIError(None, msg=event.data)
+        try:
+            client = sseclient.SSEClient(response.iter_content())
+            for event in client.events():
+                event_type = event.event
+                if event_type == 'open' or event_type == 'keep-alive':
+                    pass
+                elif event_type == 'put':
+                    queue.appendleft(json.loads(event.data))
+                    update_event.set()
+                elif event_type == 'auth_revoked':
+                    raise AuthorizationError(None,
+                                             msg='Auth token has been revoked')
+                elif event_type == 'error':
+                    raise APIError(None, msg=event.data)
 
-            if not ready_event.is_set():
-                ready_event.set()
-        response.close()
-        queue.clear()
+                if not ready_event.is_set():
+                    ready_event.set()
+        finally:
+            queue.clear()
+            update_event.set()
+            try:
+                response.close()
+            except Exception:
+                pass
 
     def _request(self, verb, path="/", data=None):
         url = "%s%s" % (API_URL, path)
@@ -1822,11 +1834,19 @@ class Nest(object):
     def _status(self):
         self._queue_lock.acquire()
         if len(self._queue) == 0 or not self._queue[0]:
-            self._open_data_stream("/")
+            try:
+                self._open_data_stream("/")
+            except AuthorizationError as authorization_error:
+                self._queue_lock.release()
+                raise authorization_error
+            except Exception:
+                # other error will fall back to pull mode
+                pass
         self._queue_lock.release()
 
-        value = self._queue[0]['data']
-        if not value:
+        value = self._queue[0]['data'] if len(self._queue) > 0 else None
+        if value is None:
+            # fall back to pull mode
             value = self._get("/")
 
         return value
