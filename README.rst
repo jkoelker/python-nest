@@ -223,14 +223,14 @@ Command line
 
     usage: nest [-h] [--conf FILE] [--token-cache TOKEN_CACHE_FILE] [-t TOKEN]
                 [--client-id ID] [--client-secret SECRET] [-k] [-c] [-s SERIAL]
-                [-S STRUCTURE] [-i INDEX]
+                [-S STRUCTURE] [-i INDEX] [-v]
                 {temp,fan,mode,away,target,humid,target_hum,show,camera-show,camera-streaming,protect-show}
                 ...
 
     Command line interface to Nest™ Thermostats
 
     positional arguments:
-    {temp,fan,mode,away,target,humid,target_hum,show,camera-show,camera-streaming,protect-show}
+      {temp,fan,mode,away,target,humid,target_hum,show,camera-show,camera-streaming,protect-show}
                             command help
         temp                show/set temperature
         fan                 set fan "on" or "auto"
@@ -265,6 +265,7 @@ Command line
                             actions
       -i INDEX, --index INDEX
                             optional, specify index number of nest to talk to
+      -v, --verbose         showing verbose logging
 
     examples:
         # If your nest is not in range mode

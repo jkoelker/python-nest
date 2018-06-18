@@ -4,6 +4,7 @@ import collections
 import copy
 import datetime
 import hashlib
+import logging
 import threading
 import time
 import os
@@ -61,6 +62,8 @@ MAXIMUM_TEMPERATURE_F = 90
 # https://developers.nest.com/documentation/api-reference/overview#targettemperaturec
 MINIMUM_TEMPERATURE_C = 9
 MAXIMUM_TEMPERATURE_C = 32
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class APIError(Exception):
@@ -131,6 +134,8 @@ class NestAuth(auth.AuthBase):
                 access_token is None and
                 os.path.exists(access_token_cache_file)):
             with open(access_token_cache_file, 'r') as f:
+                _LOGGER.debug("Load access token from %s",
+                              access_token_cache_file)
                 self._res = json.load(f)
                 self._callback(self._res)
 
@@ -145,6 +150,8 @@ class NestAuth(auth.AuthBase):
             with os.fdopen(os.open(self._access_token_cache_file,
                                    os.O_WRONLY | os.O_CREAT, 0o600),
                            'w') as f:
+                _LOGGER.debug("Save access token to %s",
+                              self._access_token_cache_file)
                 json.dump(self._res, f)
 
     def _callback(self, res):
@@ -164,7 +171,9 @@ class NestAuth(auth.AuthBase):
             session = self._session()
             post = session.post
 
+        _LOGGER.debug(">> POST %s", ACCESS_TOKEN_URL)
         response = post(ACCESS_TOKEN_URL, data=data, headers=headers)
+        _LOGGER.debug("<< %s", response.status_code)
         if response.status_code != 200:
             raise AuthorizationError(response)
         self._res = response.json()
@@ -1681,6 +1690,8 @@ class Nest(object):
         while response.status_code == 429 and retries <= max_retries:
             retries += 1
             retry_after = response.headers['Retry-After']
+            _LOGGER.info("Reach rate limit, retry (%d), after %s",
+                         retries, retry_after)
             # Default Retry Time
             wait = default_wait
 
@@ -1697,22 +1708,27 @@ class Nest(object):
                     # Does nothing and uses default (shouldn't happen)
                     pass
 
+            _LOGGER.debug("Wait %d seconds.", wait)
             time.sleep(wait)
+            _LOGGER.debug(">> %s %s", 'STREAM' if stream else verb, url)
             response = self._session.request(verb, url,
                                              allow_redirects=False,
                                              stream=stream,
                                              headers=headers,
                                              data=data)
+            _LOGGER.debug("<< %s", response.status_code)
         return response
 
     def _open_data_stream(self, path="/"):
         url = "%s%s" % (API_URL, path)
+        _LOGGER.debug(">> STREAM %s", url)
 
         # Opens the data stream
         headers = {'Accept': 'text/event-stream'}
         response = self._session.get(url, stream=True, headers=headers,
                                      allow_redirects=False)
 
+        _LOGGER.debug("<< %s", response.status_code)
         if response.status_code == 401:
             raise AuthorizationError(response)
 
@@ -1725,10 +1741,12 @@ class Nest(object):
 
         if response.status_code == 307:
             redirect_url = response.headers['Location']
+            _LOGGER.debug(">> STREAM %s", redirect_url)
             response = self._session.get(redirect_url,
                                          allow_redirects=False,
                                          headers=headers,
                                          stream=True)
+            _LOGGER.debug("<< %s", response.status_code)
             if response.status_code == 429:
                 response = self._handle_ratelimit(response, 'GET', url, None,
                                                   max_retries=10,
@@ -1745,12 +1763,15 @@ class Nest(object):
         self._event_thread.setDaemon(True)
         self._event_thread.start()
         ready_event.wait(timeout=10)
+        _LOGGER.info("Event loop started.")
 
     def _start_event_loop(self, response, queue, ready_event, update_event):
+        _LOGGER.debug("Starting event loop.")
         try:
             client = sseclient.SSEClient(response.iter_content())
             for event in client.events():
                 event_type = event.event
+                _LOGGER.debug("<<< %s event", event_type)
                 if event_type == 'open' or event_type == 'keep-alive':
                     pass
                 elif event_type == 'put':
@@ -1765,15 +1786,18 @@ class Nest(object):
                 if not ready_event.is_set():
                     ready_event.set()
         finally:
+            _LOGGER.debug("Stopping event loop.")
             queue.clear()
             update_event.set()
             try:
                 response.close()
             except Exception:
                 pass
+            _LOGGER.info("Event loop stopped.")
 
     def _request(self, verb, path="/", data=None):
         url = "%s%s" % (API_URL, path)
+        _LOGGER.debug(">> %s %s", verb, url)
 
         if data is not None:
             data = json.dumps(data)
@@ -1781,6 +1805,7 @@ class Nest(object):
         response = self._session.request(verb, url,
                                          allow_redirects=False,
                                          data=data)
+        _LOGGER.debug("<< %s", response.status_code)
         if response.status_code == 200:
             return response.json()
 
@@ -1802,10 +1827,12 @@ class Nest(object):
             raise APIError(response)
 
         redirect_url = response.headers['Location']
+        _LOGGER.debug(">> %s %s", verb, redirect_url)
         response = self._session.request(verb, redirect_url,
                                          allow_redirects=False,
                                          data=data)
 
+        _LOGGER.debug("<< %s", response.status_code)
         # Rate Limit Exceeded Catch
         if response.status_code == 429:
             response = self._handle_ratelimit(response, verb, redirect_url,
@@ -1835,6 +1862,7 @@ class Nest(object):
         self._queue_lock.acquire()
         if len(self._queue) == 0 or not self._queue[0]:
             try:
+                _LOGGER.info("Open data stream")
                 self._open_data_stream("/")
             except AuthorizationError as authorization_error:
                 self._queue_lock.release()
@@ -1847,6 +1875,7 @@ class Nest(object):
         value = self._queue[0]['data'] if len(self._queue) > 0 else None
         if value is None:
             # fall back to pull mode
+            _LOGGER.info("Fall back to pull mode")
             value = self._get("/")
 
         return value
