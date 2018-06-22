@@ -1725,8 +1725,13 @@ class Nest(object):
 
         # Opens the data stream
         headers = {'Accept': 'text/event-stream'}
+        # Set Connection Timeout to 30 seconds
+        # Set Read Timeout to 5 mintues, Nest Stream API will send
+        #  keep alive event every 30 seconds, 5 mintues is long enough
+        #  for us to belive network issue occurred
         response = self._session.get(url, stream=True, headers=headers,
-                                     allow_redirects=False)
+                                     allow_redirects=False,
+                                     timeout=(30, 300))
 
         _LOGGER.debug("<< %s", response.status_code)
         if response.status_code == 401:
@@ -1785,6 +1790,8 @@ class Nest(object):
 
                 if not ready_event.is_set():
                     ready_event.set()
+        except requests.exceptions.ConnectionError:
+            _LOGGER.warning("Haven't received data from Nest in 5 mintues")
         finally:
             _LOGGER.debug("Stopping event loop.")
             queue.clear()
@@ -1867,8 +1874,10 @@ class Nest(object):
             except AuthorizationError as authorization_error:
                 self._queue_lock.release()
                 raise authorization_error
-            except Exception:
+            except Exception as error:
                 # other error will fall back to pull mode
+                _LOGGER.debug("Exception occurred in processing stream:"
+                              " %s", error)
                 pass
         self._queue_lock.release()
 
@@ -1876,7 +1885,12 @@ class Nest(object):
         if value is None:
             # fall back to pull mode
             _LOGGER.info("Fall back to pull mode")
-            value = self._get("/")
+            try:
+                value = self._get("/")
+            except Exception as error:
+                # we already in fall back mode, swallow exception
+                _LOGGER.debug("Exception occurred in request: %s", error)
+                pass
 
         return value
 
