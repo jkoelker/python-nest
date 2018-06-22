@@ -40,4 +40,7 @@ nosetests.xml
 MANIFEST
 
 # PyCharm
-.idea/*
+.idea
+
+# VS Code
+.vscode

@@ -4,6 +4,7 @@ import collections
 import copy
 import datetime
 import hashlib
+import logging
 import threading
 import time
 import os
@@ -62,13 +63,18 @@ MAXIMUM_TEMPERATURE_F = 90
 MINIMUM_TEMPERATURE_C = 9
 MAXIMUM_TEMPERATURE_C = 32
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class APIError(Exception):
     def __init__(self, response, msg=None):
-        try:
-            response_content = response.content
-        except AttributeError:
-            response_content = response.data
+        if response is None:
+            response_content = b''
+        else:
+            try:
+                response_content = response.content
+            except AttributeError:
+                response_content = response.data
 
         if response_content != b'':
             if isinstance(response, requests.Response):
@@ -87,10 +93,13 @@ class APIError(Exception):
 
 class AuthorizationError(Exception):
     def __init__(self, response, msg=None):
-        try:
-            response_content = response.content
-        except AttributeError:
-            response_content = response.data
+        if response is None:
+            response_content = b''
+        else:
+            try:
+                response_content = response.content
+            except AttributeError:
+                response_content = response.data
 
         if response_content != b'':
             if isinstance(response, requests.Response):
@@ -125,6 +134,8 @@ class NestAuth(auth.AuthBase):
                 access_token is None and
                 os.path.exists(access_token_cache_file)):
             with open(access_token_cache_file, 'r') as f:
+                _LOGGER.debug("Load access token from %s",
+                              access_token_cache_file)
                 self._res = json.load(f)
                 self._callback(self._res)
 
@@ -139,6 +150,8 @@ class NestAuth(auth.AuthBase):
             with os.fdopen(os.open(self._access_token_cache_file,
                                    os.O_WRONLY | os.O_CREAT, 0o600),
                            'w') as f:
+                _LOGGER.debug("Save access token to %s",
+                              self._access_token_cache_file)
                 json.dump(self._res, f)
 
     def _callback(self, res):
@@ -158,7 +171,9 @@ class NestAuth(auth.AuthBase):
             session = self._session()
             post = session.post
 
+        _LOGGER.debug(">> POST %s", ACCESS_TOKEN_URL)
         response = post(ACCESS_TOKEN_URL, data=data, headers=headers)
+        _LOGGER.debug("<< %s", response.status_code)
         if response.status_code != 200:
             raise AuthorizationError(response)
         self._res = response.json()
@@ -254,8 +269,11 @@ class Device(NestBase):
 
     @property
     def structure(self):
-        return Structure(self._device['structure_id'],
-                         self._nest_api)
+        if 'structure_id' in self._device:
+            return Structure(self._device['structure_id'],
+                             self._nest_api)
+        else:
+            return None
 
     @property
     def where(self):
@@ -284,7 +302,7 @@ class Device(NestBase):
 
     @property
     def description(self):
-        return self._device['name_long']
+        return self._device.get('name_long')
 
     @property
     def is_thermostat(self):
@@ -306,7 +324,7 @@ class Thermostat(Device):
 
     @property
     def _device(self):
-        return self._devices[THERMOSTATS][self._serial]
+        return self._devices.get(THERMOSTATS, {}).get(self._serial, {})
 
     @property
     def _shared(self):
@@ -320,7 +338,7 @@ class Thermostat(Device):
 
     @property
     def software_version(self):
-        return self._device['software_version']
+        return self._device.get('software_version')
 
     @property
     def fan(self):
@@ -494,7 +512,7 @@ class Thermostat(Device):
 
     @property
     def temperature_scale(self):
-        return self._device['temperature_scale']
+        return self._device.get('temperature_scale')
 
     @property
     def is_locked(self):
@@ -537,11 +555,11 @@ class Thermostat(Device):
     @property
     def target(self):
         if self.mode == 'heat-cool':
-            low = self._device[self._temp_key('target_temperature_low')]
-            high = self._device[self._temp_key('target_temperature_high')]
+            low = self._device.get(self._temp_key('target_temperature_low'))
+            high = self._device.get(self._temp_key('target_temperature_high'))
             return LowHighTuple(low, high)
 
-        return self._device[self._temp_key('target_temperature')]
+        return self._device.get(self._temp_key('target_temperature'))
 
     @target.setter
     def target(self, value):
@@ -662,7 +680,7 @@ class SmokeCoAlarm(Device):
 
     @property
     def _device(self):
-        return self._devices[SMOKE_CO_ALARMS][self._serial]
+        return self._devices.get(SMOKE_CO_ALARMS, {}).get(self._serial, {})
 
     @property
     def auto_away(self):
@@ -1089,7 +1107,7 @@ class Camera(Device):
 
     @property
     def _device(self):
-        return self._devices[CAMERAS][self._serial]
+        return self._devices.get(CAMERAS, {}).get(self._serial, {})
 
     @property
     def ongoing_event(self):
@@ -1333,7 +1351,8 @@ class Camera(Device):
 class Structure(NestBase):
     @property
     def _structure(self):
-        return self._nest_api._status[STRUCTURES][self._serial]
+        return self._nest_api._status.get(
+            STRUCTURES, {}).get(self._serial, {})
 
     def __repr__(self):
         return str(self._structure)
@@ -1675,6 +1694,8 @@ class Nest(object):
         while response.status_code == 429 and retries <= max_retries:
             retries += 1
             retry_after = response.headers['Retry-After']
+            _LOGGER.info("Reach rate limit, retry (%d), after %s",
+                         retries, retry_after)
             # Default Retry Time
             wait = default_wait
 
@@ -1691,22 +1712,32 @@ class Nest(object):
                     # Does nothing and uses default (shouldn't happen)
                     pass
 
+            _LOGGER.debug("Wait %d seconds.", wait)
             time.sleep(wait)
+            _LOGGER.debug(">> %s %s", 'STREAM' if stream else verb, url)
             response = self._session.request(verb, url,
                                              allow_redirects=False,
                                              stream=stream,
                                              headers=headers,
                                              data=data)
+            _LOGGER.debug("<< %s", response.status_code)
         return response
 
     def _open_data_stream(self, path="/"):
         url = "%s%s" % (API_URL, path)
+        _LOGGER.debug(">> STREAM %s", url)
 
         # Opens the data stream
         headers = {'Accept': 'text/event-stream'}
+        # Set Connection Timeout to 30 seconds
+        # Set Read Timeout to 5 mintues, Nest Stream API will send
+        #  keep alive event every 30 seconds, 5 mintues is long enough
+        #  for us to belive network issue occurred
         response = self._session.get(url, stream=True, headers=headers,
-                                     allow_redirects=False)
+                                     allow_redirects=False,
+                                     timeout=(30, 300))
 
+        _LOGGER.debug("<< %s", response.status_code)
         if response.status_code == 401:
             raise AuthorizationError(response)
 
@@ -1719,10 +1750,14 @@ class Nest(object):
 
         if response.status_code == 307:
             redirect_url = response.headers['Location']
+            _LOGGER.debug(">> STREAM %s", redirect_url)
+            # For stream API, we have to deal redirect manually
             response = self._session.get(redirect_url,
                                          allow_redirects=False,
                                          headers=headers,
-                                         stream=True)
+                                         stream=True,
+                                         timeout=(30, 300))
+            _LOGGER.debug("<< %s", response.status_code)
             if response.status_code == 429:
                 response = self._handle_ratelimit(response, 'GET', url, None,
                                                   max_retries=10,
@@ -1739,29 +1774,43 @@ class Nest(object):
         self._event_thread.setDaemon(True)
         self._event_thread.start()
         ready_event.wait(timeout=10)
+        _LOGGER.info("Event loop started.")
 
     def _start_event_loop(self, response, queue, ready_event, update_event):
-        client = sseclient.SSEClient(response.iter_content())
-        for event in client.events():
-            event_type = event.event
-            if event_type == 'open' or event_type == 'keep-alive':
-                pass
-            elif event_type == 'put':
-                queue.appendleft(json.loads(event.data))
-                update_event.set()
-            elif event_type == 'auth_revoked':
-                raise AuthorizationError(None,
-                                         msg='Auth token has been revoked')
-            elif event_type == 'error':
-                raise APIError(None, msg=event.data)
+        _LOGGER.debug("Starting event loop.")
+        try:
+            client = sseclient.SSEClient(response.iter_content())
+            for event in client.events():
+                event_type = event.event
+                _LOGGER.debug("<<< %s event", event_type)
+                if event_type == 'open' or event_type == 'keep-alive':
+                    pass
+                elif event_type == 'put':
+                    queue.appendleft(json.loads(event.data))
+                    update_event.set()
+                elif event_type == 'auth_revoked':
+                    raise AuthorizationError(None,
+                                             msg='Auth token has been revoked')
+                elif event_type == 'error':
+                    raise APIError(None, msg=event.data)
 
-            if not ready_event.is_set():
-                ready_event.set()
-        response.close()
-        queue.clear()
+                if not ready_event.is_set():
+                    ready_event.set()
+        except requests.exceptions.ConnectionError:
+            _LOGGER.warning("Haven't received data from Nest in 5 mintues")
+        finally:
+            _LOGGER.debug("Stopping event loop.")
+            queue.clear()
+            update_event.set()
+            try:
+                response.close()
+            except Exception:
+                pass
+            _LOGGER.info("Event loop stopped.")
 
     def _request(self, verb, path="/", data=None):
         url = "%s%s" % (API_URL, path)
+        _LOGGER.debug(">> %s %s", verb, url)
 
         if data is not None:
             data = json.dumps(data)
@@ -1769,6 +1818,7 @@ class Nest(object):
         response = self._session.request(verb, url,
                                          allow_redirects=False,
                                          data=data)
+        _LOGGER.debug("<< %s", response.status_code)
         if response.status_code == 200:
             return response.json()
 
@@ -1790,10 +1840,12 @@ class Nest(object):
             raise APIError(response)
 
         redirect_url = response.headers['Location']
+        _LOGGER.debug(">> %s %s", verb, redirect_url)
         response = self._session.request(verb, redirect_url,
                                          allow_redirects=False,
                                          data=data)
 
+        _LOGGER.debug("<< %s", response.status_code)
         # Rate Limit Exceeded Catch
         if response.status_code == 429:
             response = self._handle_ratelimit(response, verb, redirect_url,
@@ -1822,26 +1874,34 @@ class Nest(object):
     def _status(self):
         self._queue_lock.acquire()
         if len(self._queue) == 0 or not self._queue[0]:
-            self._open_data_stream("/")
+            try:
+                _LOGGER.info("Open data stream")
+                self._open_data_stream("/")
+            except AuthorizationError as authorization_error:
+                self._queue_lock.release()
+                raise authorization_error
+            except Exception as error:
+                # other error still set update_event to trigger retry
+                _LOGGER.debug("Exception occurred in processing stream:"
+                              " %s", error)
+                self._queue.clear()
+                self._update_event.set()
         self._queue_lock.release()
 
-        value = self._queue[0]['data']
-        if not value:
-            value = self._get("/")
-
+        value = self._queue[0]['data'] if len(self._queue) > 0 else {}
         return value
 
     @property
     def _metadata(self):
-        return self._status[METADATA]
+        return self._status.get(METADATA, {})
 
     @property
     def client_version(self):
-        return self._metadata['client_version']
+        return self._metadata.get('client_version')
 
     @property
     def _devices(self):
-        return self._status[DEVICES]
+        return self._status.get(DEVICES, {})
 
     @property
     def devices(self):
@@ -1873,7 +1933,7 @@ class Nest(object):
     @property
     def structures(self):
         return [Structure(stid, self)
-                for stid in self._status[STRUCTURES]]
+                for stid in self._status.get(STRUCTURES, [])]
 
     @property
     def urls(self):
