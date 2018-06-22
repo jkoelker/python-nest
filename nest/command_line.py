@@ -9,6 +9,7 @@ from __future__ import print_function
 
 import argparse
 import datetime
+import logging
 import os
 import sys
 import errno
@@ -75,6 +76,10 @@ def get_parser():
     parser.add_argument('-i', '--index', dest='index', default=0, type=int,
                         help='optional, specify index number of nest to '
                              'talk to')
+
+    parser.add_argument('-v', '--verbose', dest='verbose',
+                        action='store_true',
+                        help='showing verbose logging')
 
     subparsers = parser.add_subparsers(dest='command',
                                        help='command help')
@@ -297,6 +302,17 @@ def handle_show_commands(napi, device, display_temp, print_prompt,
 def main():
     parser = get_parser()
     args = parser.parse_args()
+
+    if args.verbose:
+        logger = logging.getLogger('nest')
+        logger.setLevel(logging.DEBUG)
+        console_handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+           "%(asctime)s %(levelname)s (%(threadName)s) "
+           "[%(name)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+        console_handler.setFormatter(formatter)
+        console_handler.setLevel(logging.DEBUG)
+        logger.addHandler(console_handler)
 
     # This is the command(s) passed to the command line utility
     cmd = args.command
