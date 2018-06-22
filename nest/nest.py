@@ -1725,13 +1725,13 @@ class Nest(object):
 
         # Opens the data stream
         headers = {'Accept': 'text/event-stream'}
-        # Set Connection Timeout to 10 seconds
+        # Set Connection Timeout to 30 seconds
         # Set Read Timeout to 5 mintues, Nest Stream API will send
         #  keep alive event every 30 seconds, 5 mintues is long enough
         #  for us to belive network issue occurred
         response = self._session.get(url, stream=True, headers=headers,
                                      allow_redirects=False,
-                                     timeout=(10, 300))
+                                     timeout=(30, 300))
 
         _LOGGER.debug("<< %s", response.status_code)
         if response.status_code == 401:
@@ -1752,7 +1752,7 @@ class Nest(object):
                                          allow_redirects=False,
                                          headers=headers,
                                          stream=True,
-                                         timeout=(10, 300))
+                                         timeout=(30, 300))
             _LOGGER.debug("<< %s", response.status_code)
             if response.status_code == 429:
                 response = self._handle_ratelimit(response, 'GET', url, None,
@@ -1877,23 +1877,14 @@ class Nest(object):
                 self._queue_lock.release()
                 raise authorization_error
             except Exception as error:
-                # other error will fall back to pull mode
+                # other error still set update_event to trigger retry
                 _LOGGER.debug("Exception occurred in processing stream:"
                               " %s", error)
-                pass
+                self._queue.clear()
+                self._update_event.set()
         self._queue_lock.release()
 
-        value = self._queue[0]['data'] if len(self._queue) > 0 else None
-        if value is None:
-            # fall back to pull mode
-            _LOGGER.info("Fall back to pull mode")
-            try:
-                value = self._get("/")
-            except Exception as error:
-                # we already in fall back mode, swallow exception
-                _LOGGER.debug("Exception occurred in request: %s", error)
-                pass
-
+        value = self._queue[0]['data'] if len(self._queue) > 0 else {}
         return value
 
     @property
