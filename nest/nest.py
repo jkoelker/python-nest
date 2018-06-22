@@ -269,8 +269,11 @@ class Device(NestBase):
 
     @property
     def structure(self):
-        return Structure(self._device['structure_id'],
-                         self._nest_api)
+        if 'structure_id' in self._device:
+            return Structure(self._device['structure_id'],
+                             self._nest_api)
+        else:
+            return None
 
     @property
     def where(self):
@@ -299,7 +302,7 @@ class Device(NestBase):
 
     @property
     def description(self):
-        return self._device['name_long']
+        return self._device.get('name_long')
 
     @property
     def is_thermostat(self):
@@ -321,7 +324,7 @@ class Thermostat(Device):
 
     @property
     def _device(self):
-        return self._devices[THERMOSTATS][self._serial]
+        return self._devices.get(THERMOSTATS, {}).get(self._serial, {})
 
     @property
     def _shared(self):
@@ -335,7 +338,7 @@ class Thermostat(Device):
 
     @property
     def software_version(self):
-        return self._device['software_version']
+        return self._device.get('software_version')
 
     @property
     def fan(self):
@@ -509,7 +512,7 @@ class Thermostat(Device):
 
     @property
     def temperature_scale(self):
-        return self._device['temperature_scale']
+        return self._device.get('temperature_scale')
 
     @property
     def is_locked(self):
@@ -552,11 +555,11 @@ class Thermostat(Device):
     @property
     def target(self):
         if self.mode == 'heat-cool':
-            low = self._device[self._temp_key('target_temperature_low')]
-            high = self._device[self._temp_key('target_temperature_high')]
+            low = self._device.get(self._temp_key('target_temperature_low'))
+            high = self._device.get(self._temp_key('target_temperature_high'))
             return LowHighTuple(low, high)
 
-        return self._device[self._temp_key('target_temperature')]
+        return self._device.get(self._temp_key('target_temperature'))
 
     @target.setter
     def target(self, value):
@@ -677,7 +680,7 @@ class SmokeCoAlarm(Device):
 
     @property
     def _device(self):
-        return self._devices[SMOKE_CO_ALARMS][self._serial]
+        return self._devices.get(SMOKE_CO_ALARMS, {}).get(self._serial, {})
 
     @property
     def auto_away(self):
@@ -1104,7 +1107,7 @@ class Camera(Device):
 
     @property
     def _device(self):
-        return self._devices[CAMERAS][self._serial]
+        return self._devices.get(CAMERAS, {}).get(self._serial, {})
 
     @property
     def ongoing_event(self):
@@ -1348,7 +1351,8 @@ class Camera(Device):
 class Structure(NestBase):
     @property
     def _structure(self):
-        return self._nest_api._status[STRUCTURES][self._serial]
+        return self._nest_api._status.get(
+            STRUCTURES, {}).get(self._serial, {})
 
     def __repr__(self):
         return str(self._structure)
@@ -1725,8 +1729,13 @@ class Nest(object):
 
         # Opens the data stream
         headers = {'Accept': 'text/event-stream'}
+        # Set Connection Timeout to 30 seconds
+        # Set Read Timeout to 5 mintues, Nest Stream API will send
+        #  keep alive event every 30 seconds, 5 mintues is long enough
+        #  for us to belive network issue occurred
         response = self._session.get(url, stream=True, headers=headers,
-                                     allow_redirects=False)
+                                     allow_redirects=False,
+                                     timeout=(30, 300))
 
         _LOGGER.debug("<< %s", response.status_code)
         if response.status_code == 401:
@@ -1742,10 +1751,12 @@ class Nest(object):
         if response.status_code == 307:
             redirect_url = response.headers['Location']
             _LOGGER.debug(">> STREAM %s", redirect_url)
+            # For stream API, we have to deal redirect manually
             response = self._session.get(redirect_url,
                                          allow_redirects=False,
                                          headers=headers,
-                                         stream=True)
+                                         stream=True,
+                                         timeout=(30, 300))
             _LOGGER.debug("<< %s", response.status_code)
             if response.status_code == 429:
                 response = self._handle_ratelimit(response, 'GET', url, None,
@@ -1785,6 +1796,8 @@ class Nest(object):
 
                 if not ready_event.is_set():
                     ready_event.set()
+        except requests.exceptions.ConnectionError:
+            _LOGGER.warning("Haven't received data from Nest in 5 mintues")
         finally:
             _LOGGER.debug("Stopping event loop.")
             queue.clear()
@@ -1867,30 +1880,28 @@ class Nest(object):
             except AuthorizationError as authorization_error:
                 self._queue_lock.release()
                 raise authorization_error
-            except Exception:
-                # other error will fall back to pull mode
-                pass
+            except Exception as error:
+                # other error still set update_event to trigger retry
+                _LOGGER.debug("Exception occurred in processing stream:"
+                              " %s", error)
+                self._queue.clear()
+                self._update_event.set()
         self._queue_lock.release()
 
-        value = self._queue[0]['data'] if len(self._queue) > 0 else None
-        if value is None:
-            # fall back to pull mode
-            _LOGGER.info("Fall back to pull mode")
-            value = self._get("/")
-
+        value = self._queue[0]['data'] if len(self._queue) > 0 else {}
         return value
 
     @property
     def _metadata(self):
-        return self._status[METADATA]
+        return self._status.get(METADATA, {})
 
     @property
     def client_version(self):
-        return self._metadata['client_version']
+        return self._metadata.get('client_version')
 
     @property
     def _devices(self):
-        return self._status[DEVICES]
+        return self._status.get(DEVICES, {})
 
     @property
     def devices(self):
@@ -1922,7 +1933,7 @@ class Nest(object):
     @property
     def structures(self):
         return [Structure(stid, self)
-                for stid in self._status[STRUCTURES]]
+                for stid in self._status.get(STRUCTURES, [])]
 
     @property
     def urls(self):
