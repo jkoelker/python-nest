@@ -1725,13 +1725,13 @@ class Nest(object):
 
         # Opens the data stream
         headers = {'Accept': 'text/event-stream'}
-        # Set Connection Timeout to 30 seconds
+        # Set Connection Timeout to 10 seconds
         # Set Read Timeout to 5 mintues, Nest Stream API will send
         #  keep alive event every 30 seconds, 5 mintues is long enough
         #  for us to belive network issue occurred
         response = self._session.get(url, stream=True, headers=headers,
                                      allow_redirects=False,
-                                     timeout=(30, 300))
+                                     timeout=(10, 300))
 
         _LOGGER.debug("<< %s", response.status_code)
         if response.status_code == 401:
@@ -1747,10 +1747,12 @@ class Nest(object):
         if response.status_code == 307:
             redirect_url = response.headers['Location']
             _LOGGER.debug(">> STREAM %s", redirect_url)
+            # For stream API, we have to deal redirect manually
             response = self._session.get(redirect_url,
                                          allow_redirects=False,
                                          headers=headers,
-                                         stream=True)
+                                         stream=True,
+                                         timeout=(10, 300))
             _LOGGER.debug("<< %s", response.status_code)
             if response.status_code == 429:
                 response = self._handle_ratelimit(response, 'GET', url, None,
