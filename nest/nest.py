@@ -1303,8 +1303,7 @@ class Camera(Device):
 
     @property
     def software_version(self):
-        raise NotImplementedError("No longer available in Nest API")
-        # return self._device['software_version']
+        return self._device['software_version']
 
     @property
     def spoken_where_id(self):
