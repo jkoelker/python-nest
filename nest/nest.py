@@ -514,6 +514,10 @@ class Thermostat(Device):
     def temperature_scale(self):
         return self._device.get('temperature_scale')
 
+    @temperature_scale.setter
+    def temperature_scale(self, value):
+        self._set('devices/thermostats', {'temperature_scale': value.upper()})
+
     @property
     def is_locked(self):
         return self._device.get('is_locked')
