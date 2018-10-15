@@ -596,8 +596,8 @@ class Thermostat(Device):
     @property
     def eco_temperature(self):
         # use get, since eco_temperature isn't always filled out
-        low = self._device.get(self._temp_key('eco_temperature_low'))
-        high = self._device.get(self._temp_key('eco_temperature_high'))
+        low = self._device.get(self._temp_key('away_temperature_low'))
+        high = self._device.get(self._temp_key('away_temperature_high'))
 
         return LowHighTuple(low, high)
 
