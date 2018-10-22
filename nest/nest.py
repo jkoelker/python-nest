@@ -268,6 +268,10 @@ class Device(NestBase):
         return self._device.get('is_online')
 
     @property
+    def software_version(self):
+        return self._device.get('software_version')
+
+    @property
     def structure(self):
         if 'structure_id' in self._device:
             return Structure(self._device['structure_id'],
@@ -335,10 +339,6 @@ class Thermostat(Device):
     def _track(self):
         raise NotImplementedError("Deprecated Nest API")
         # return self._nest_api._status['track'][self._serial]
-
-    @property
-    def software_version(self):
-        return self._device.get('software_version')
 
     @property
     def fan(self):
@@ -921,10 +921,6 @@ class SmokeCoAlarm(Device):
         return self._device.get('smoke_alarm_state')
 
     @property
-    def software_version(self):
-        return self._device.get('software_version')
-
-    @property
     def spoken_where_id(self):
         raise NotImplementedError("No longer available in Nest API")
         # return self._device['spoken_where_id']
@@ -1300,10 +1296,6 @@ class Camera(Device):
     def resource_id(self):
         raise NotImplementedError("No longer available in Nest API")
         # return self._device['resource_id']
-
-    @property
-    def software_version(self):
-        return self._device['software_version']
 
     @property
     def spoken_where_id(self):
