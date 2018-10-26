@@ -268,6 +268,10 @@ class Device(NestBase):
         return self._device.get('is_online')
 
     @property
+    def software_version(self):
+        return self._device.get('software_version')
+
+    @property
     def structure(self):
         if 'structure_id' in self._device:
             return Structure(self._device['structure_id'],
@@ -335,10 +339,6 @@ class Thermostat(Device):
     def _track(self):
         raise NotImplementedError("Deprecated Nest API")
         # return self._nest_api._status['track'][self._serial]
-
-    @property
-    def software_version(self):
-        return self._device.get('software_version')
 
     @property
     def fan(self):
@@ -513,6 +513,10 @@ class Thermostat(Device):
     @property
     def temperature_scale(self):
         return self._device.get('temperature_scale')
+
+    @temperature_scale.setter
+    def temperature_scale(self, value):
+        self._set('devices/thermostats', {'temperature_scale': value.upper()})
 
     @property
     def is_locked(self):
@@ -921,10 +925,6 @@ class SmokeCoAlarm(Device):
         return self._device.get('smoke_alarm_state')
 
     @property
-    def software_version(self):
-        return self._device.get('software_version')
-
-    @property
     def spoken_where_id(self):
         raise NotImplementedError("No longer available in Nest API")
         # return self._device['spoken_where_id']
@@ -1302,11 +1302,6 @@ class Camera(Device):
         # return self._device['resource_id']
 
     @property
-    def software_version(self):
-        raise NotImplementedError("No longer available in Nest API")
-        # return self._device['software_version']
-
-    @property
     def spoken_where_id(self):
         raise NotImplementedError("No longer available in Nest API")
         # return self._device['spoken_where_id']
@@ -1531,28 +1526,39 @@ class Structure(NestBase):
         if 'eta_begin' in self._structure:
             return parse_time(self._structure['eta_begin'])
 
+    def _set_eta(self, trip_id, eta_begin, eta_end):
+        if self.num_thermostats == 0:
+            raise ValueError("ETA can only be set or cancelled when a"
+                             " thermostat is in the structure.")
+        if trip_id is None:
+            raise ValueError("trip_id must be not None")
+
+        data = {'trip_id': trip_id,
+                'estimated_arrival_window_begin': eta_begin,
+                'estimated_arrival_window_end': eta_end}
+
+        self._set('structures', {'eta': data})
+
     def set_eta(self, trip_id, eta_begin, eta_end=None):
         """
         Set estimated arrival winow, use same trip_id to update estimation.
-        Nest may choose ignore inaccurate estimation.
+        Nest may choose to ignore inaccurate estimation.
         See: https://developers.nest.com/documentation/cloud/away-guide
              #make_an_eta_write_call
         """
-        if self.num_thermostats == 0:
-            raise ValueError("ETA can only be set when Thermostat is in the"
-                             " structure.")
-        if trip_id is None:
-            raise ValueError("trip_id must be not None")
         if eta_begin is None:
             raise ValueError("eta_begin must be not None")
         if eta_end is None:
-            # set default eta window to 1 minute
-            eta_end = eta_begin + datetime.timedelta(0, 60)
+            eta_end = eta_begin + datetime.timedelta(minutes=1)
 
-        data = {'trip_id': trip_id,
-                'estimated_arrival_window_begin': eta_begin.isoformat(),
-                'estimated_arrival_window_end': eta_end.isoformat()}
-        self._set('structures', {'eta': data})
+        self._set_eta(trip_id, eta_begin.isoformat(), eta_end.isoformat())
+
+    def cancel_eta(self, trip_id):
+        """
+        Cancel estimated arrival winow.
+        """
+        eta_end = datetime.datetime.utcnow()
+        self._set_eta(trip_id, int(0), eta_end.isoformat())
 
     @property
     def wheres(self):
