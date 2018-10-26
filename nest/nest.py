@@ -1536,6 +1536,7 @@ class Structure(NestBase):
         data = {'trip_id': trip_id,
                 'estimated_arrival_window_begin': eta_begin,
                 'estimated_arrival_window_end': eta_end}
+
         self._set('structures', {'eta': data})
 
     def set_eta(self, trip_id, eta_begin, eta_end=None):
@@ -1548,8 +1549,7 @@ class Structure(NestBase):
         if eta_begin is None:
             raise ValueError("eta_begin must be not None")
         if eta_end is None:
-            # set default eta window to 1 minute
-            eta_end = eta_begin + datetime.timedelta(0, 60)
+            eta_end = eta_begin + datetime.timedelta(minutes=1)
 
         self._set_eta(trip_id, eta_begin.isoformat(), eta_end.isoformat())
 
@@ -1557,7 +1557,8 @@ class Structure(NestBase):
         """
         Cancel estimated arrival winow.
         """
-        self._set_eta(trip_id, int(0), datetime.datetime.now())
+        eta_end = datetime.datetime.utcnow()
+        self._set_eta(trip_id, int(0), eta_end.isoformat())
 
     @property
     def wheres(self):
