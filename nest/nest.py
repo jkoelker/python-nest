@@ -1699,24 +1699,25 @@ class Nest(object):
         retries = 0
         while response.status_code == 429 and retries <= max_retries:
             retries += 1
-            retry_after = response.headers.get('Retry-After', 'N/A')
+            retry_after = response.headers.get('Retry-After')
             _LOGGER.info("Reach rate limit, retry (%d), after %s",
                          retries, retry_after)
             # Default Retry Time
             wait = default_wait
 
-            try:
-                # Checks if retry_after is a number
-                wait = float(retry_after)
-            except ValueError:
-                # If not:
+            if retry_after is not None:
                 try:
-                    # Checks if retry_after is a HTTP date
-                    now = datetime.datetime.now()
-                    wait = (now - parse_time(retry_after)).total_seconds()
+                    # Checks if retry_after is a number
+                    wait = float(retry_after)
                 except ValueError:
-                    # Does nothing and uses default (shouldn't happen)
-                    pass
+                    # If not:
+                    try:
+                        # Checks if retry_after is a HTTP date
+                        now = datetime.datetime.now()
+                        wait = (now - parse_time(retry_after)).total_seconds()
+                    except ValueError:
+                        # Use default
+                        pass
 
             _LOGGER.debug("Wait %d seconds.", wait)
             time.sleep(wait)
