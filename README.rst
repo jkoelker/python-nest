@@ -293,8 +293,8 @@ A configuration file must be specified and used for the credentials to communica
 .. code-block:: ini
 
     [NEST]
-    client-id = your_client_id
-    client-secret = your_client_secret
+    client_id = your_client_id
+    client_secret = your_client_secret
     token_cache = ~/.config/nest/token_cache
 
 
