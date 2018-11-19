@@ -1699,7 +1699,7 @@ class Nest(object):
         retries = 0
         while response.status_code == 429 and retries <= max_retries:
             retries += 1
-            retry_after = response.headers['Retry-After']
+            retry_after = response.headers.get('Retry-After', 'N/A')
             _LOGGER.info("Reach rate limit, retry (%d), after %s",
                          retries, retry_after)
             # Default Retry Time
