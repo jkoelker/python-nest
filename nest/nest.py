@@ -1060,7 +1060,7 @@ class CameraEvent(NestBase):
         if 'end_time' in self._event:
             end_time = parse_time(self._event['end_time'])
             if end_time:
-                return end_time + datetime.timedelta(seconds = 30)
+                return end_time + datetime.timedelta(seconds=30)
 
     @property
     def urls_expire_time(self):
