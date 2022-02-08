@@ -156,7 +156,7 @@ class NestAuth(auth.AuthBase):
 
     def _callback(self, res):
         if self.auth_callback is not None and isinstance(self.auth_callback,
-                                                         collections.Callable):
+                                                         collections.abc.Callable):
             self.auth_callback(res)
 
     def login(self, headers=None):
